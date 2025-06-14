@@ -16,7 +16,15 @@ def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
     else:
-        df = pd.DataFrame(columns=REQUIRED_COLUMNS)
+        df = pd.DataFrame()
+
+    # Add any missing columns to match schema
+    for col in REQUIRED_COLUMNS:
+        if col not in df.columns:
+            df[col] = ""
+    
+    # Reorder columns to match schema
+    df = df[REQUIRED_COLUMNS]
     return df
 
 def is_duplicate(entry, df):
