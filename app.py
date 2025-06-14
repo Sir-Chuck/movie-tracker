@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from tmdb_api import fetch_movie_data
-from analytics import render_analytics_tab
+from analytics_tab import render_analytics_tab
 from datetime import datetime
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
