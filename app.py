@@ -1,56 +1,75 @@
-import streamlit as st
+# app.py
+import os
 import pandas as pd
-from datetime import datetime
-from tmdb_api import get_movie_data
+import streamlit as st
+from tmdb_api import fetch_movie_data
 
-st.set_page_config(page_title="🎬 Movie Tracker", layout="wide")
-st.title("🎬 Movie Tracker")
+DATA_FILE = "movies.csv"
+REQUIRED_COLUMNS = [
+    "Title", "Year", "Genre", "Director", "IMDB Rating",
+    "Runtime", "Language", "First Watch", "Rewatchability", "Personal Notes", "Overview"
+]
 
-DATA_PATH = "tracked_movies.csv"
+@st.cache_data
+def load_data():
+    if os.path.exists(DATA_FILE):
+        df = pd.read_csv(DATA_FILE)
+    else:
+        df = pd.DataFrame(columns=REQUIRED_COLUMNS)
+    return df
 
-# Load or initialize data
-try:
-    df = pd.read_csv(DATA_PATH)
-except FileNotFoundError:
-    df = pd.DataFrame(columns=[
-        "title", "release_year", "genre", "director", "cast", "date_added"
-    ])
+def is_duplicate(entry, df):
+    return ((df["Title"] == entry["Title"]) & (df["Year"] == entry["Year"])).any()
 
-# Display tracked movies
-st.subheader("Currently Tracked Movies")
-st.dataframe(df.sort_values(by="date_added", ascending=False), use_container_width=True)
+def add_movies(titles, df):
+    added, skipped, failed = [], [], []
+    for title in titles:
+        movie = fetch_movie_data(title)
+        if not movie:
+            failed.append(title)
+            continue
 
-# Add new movies
-st.subheader("➕ Add Movies")
-with st.form("add_movies"):
-    new_movies_input = st.text_area("Enter movie titles (one per line):")
-    submitted = st.form_submit_button("Add to Tracked List")
+        for col in REQUIRED_COLUMNS:
+            movie.setdefault(col, "")
 
-    if submitted:
-        new_movies = [m.strip() for m in new_movies_input.strip().split("\n") if m.strip()]
-        added = []
-        skipped = []
-        not_found = []
+        if not is_duplicate(movie, df):
+            df = pd.concat([df, pd.DataFrame([movie])], ignore_index=True)
+            added.append(title)
+        else:
+            skipped.append(title)
+    return df, added, skipped, failed
 
-        for title in new_movies:
-            if title.lower() in df['title'].str.lower().values:
-                skipped.append(title)
-                continue
+def main():
+    st.title("🎬 Movie Tracker")
+    df = load_data()
 
-            movie_data = get_movie_data(title)
-            if movie_data:
-                movie_data["date_added"] = datetime.today().strftime("%Y-%m-%d")
-                df = pd.concat([df, pd.DataFrame([movie_data])], ignore_index=True)
-                added.append(title)
-            else:
-                not_found.append(title)
-
-        df.to_csv(DATA_PATH, index=False)
-
-        # Display results without returning DeltaGenerator
-        if added:
-            st.success("✅ Added: " + ", ".join(added))
+    st.header("📥 Add Movies (Batch)")
+    titles_input = st.text_area("Enter one movie title per line:")
+    if st.button("Add Movies"):
+        titles = [t.strip() for t in titles_input.splitlines() if t.strip()]
+        df, added, skipped, failed = add_movies(titles, df)
+        df.to_csv(DATA_FILE, index=False)
+        st.success(f"✅ Added: {len(added)}")
         if skipped:
-            st.warning("⚠️ Already Tracked: " + ", ".join(skipped))
-        if not_found:
-            st.error("❌ Not Found: " + ", ".join(not_found))
+            st.warning(f"⚠️ Skipped duplicates: {', '.join(skipped)}")
+        if failed:
+            st.error(f"❌ Not found: {', '.join(failed)}")
+
+    st.header("➕ Add Single Movie")
+    title_single = st.text_input("Movie title:")
+    if st.button("Add This Movie"):
+        if title_single.strip():
+            df, added, skipped, failed = add_movies([title_single.strip()], df)
+            df.to_csv(DATA_FILE, index=False)
+            if added:
+                st.success(f"Added: {title_single}")
+            elif skipped:
+                st.warning("That movie is already in your list.")
+            else:
+                st.error("Could not find that movie.")
+
+    st.header("🎯 Your Movie Collection")
+    st.dataframe(df[REQUIRED_COLUMNS], use_container_width=True)
+
+if __name__ == "__main__":
+    main()
