@@ -44,6 +44,10 @@ if st.button("Add Movies"):
                 continue
 
             results = search_movie(title_clean)
+            st.write(f"🔍 Searching for '{title_clean}'...")
+            results = search_movie(title_clean)
+            st.write(f"Results count:", len(results))
+            st.write("First items:", results[:3])
             match, score = get_best_match(title_clean, results)
 
             if match and score > 45:
