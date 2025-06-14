@@ -17,7 +17,6 @@ def load_data():
     else:
         df = pd.DataFrame(columns=REQUIRED_COLUMNS)
 
-    # Ensure all required columns are present
     for col in REQUIRED_COLUMNS:
         if col not in df.columns:
             df[col] = ""
@@ -32,9 +31,9 @@ def add_movies(titles, df):
 
     total = len(titles)
     for i, title in enumerate(titles):
-        movie = fetch_movie_data(title)
         progress.progress((i + 1) / total, text=f"Fetching: {title} ({i+1}/{total})")
 
+        movie = fetch_movie_data(title)
         if not movie:
             failed.append(title)
             continue
@@ -81,7 +80,7 @@ def main():
             if added:
                 st.success(f"✅ Added: {title_single}")
             elif skipped:
-                st.info(f"⏭️ Skipped: already in collection")
+                st.info("⏭️ Skipped: already in collection")
             elif failed:
                 st.error("❌ Could not find that movie")
 
@@ -90,7 +89,7 @@ def main():
         df = pd.DataFrame(columns=REQUIRED_COLUMNS)
         df.to_csv(DATA_FILE, index=False)
         st.warning("All movie data has been cleared.")
-        st.experimental_rerun()  # ensure clean reload
+        st.experimental_rerun()  # force reload
 
     st.header("🎯 Your Movie Collection")
     st.dataframe(df[REQUIRED_COLUMNS], use_container_width=True)
