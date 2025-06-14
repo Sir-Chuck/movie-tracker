@@ -1,39 +1,42 @@
 import requests
-from rapidfuzz import fuzz
 import streamlit as st
+from rapidfuzz import process
 
 TMDB_API_KEY = st.secrets["tmdb"]["key"]
 
-def search_movie(title):
+def search_tmdb_movie(title):
     url = "https://api.themoviedb.org/3/search/movie"
-    params = {
-        "api_key": TMDB_API_KEY,
-        "query": title,
-        "language": "en-US",
-        "include_adult": False,
-        "page": 1
-    }
+    params = {"query": title, "api_key": TMDB_API_KEY}
     response = requests.get(url, params=params)
-    return response.json().get("results", [])
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("results", [])
+    return []
 
 def get_best_match(title, results):
-    if not results:
-        return None, 0
-    best_score = 0
-    best_result = None
-    for r in results:
-        score = fuzz.ratio(title.lower(), r.get("title", "").lower())
-        if score > best_score:
-            best_score = score
-            best_result = r
-    return best_result, best_score
+    titles = [movie["title"] for movie in results]
+    match, score, _ = process.extractOne(title, titles)
+    return match if score >= 80 else None
 
-def get_movie_details(movie_id):
-    url = f"https://api.themoviedb.org/3/movie/{movie_id}"
-    params = {
-        "api_key": TMDB_API_KEY,
-        "append_to_response": "credits",
-        "language": "en-US"
-    }
-    response = requests.get(url, params=params)
-    return response.json()
+def get_movie_data(title):
+    results = search_tmdb_movie(title)
+
+    if not results:
+        return {"fuzzy_match": None}
+
+    match_title = get_best_match(title, results)
+
+    if match_title:
+        movie = next((m for m in results if m["title"] == match_title), None)
+        if movie:
+            return {
+                "title": movie["title"],
+                "release_date": movie.get("release_date", ""),
+                "overview": movie.get("overview", ""),
+                "vote_average": movie.get("vote_average", ""),
+                "tmdb_id": movie.get("id"),
+            }
+    elif results:
+        return {"fuzzy_match": results[0]["title"]}
+
+    return {"fuzzy_match": None}
