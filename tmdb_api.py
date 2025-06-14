@@ -35,8 +35,7 @@ def get_best_match(title, results):
             best_score = score
             best_result = r
 
-    # Optional: apply a confidence threshold
-    return best_result if best_score > 60 else None
+    return best_result if best_score > 60 else None  # Adjustable threshold
 
 def get_movie_details(movie_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}"
