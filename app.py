@@ -5,6 +5,7 @@ from datetime import datetime
 from tmdb_api import fetch_movie_data
 import matplotlib.pyplot as plt
 import altair as alt
+import os
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
 
@@ -37,6 +38,7 @@ st.markdown("""
 st.markdown('<div class="title">MovieGraph</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle"><span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
 
+BACKEND_PATH = "data/backend_movie_data.csv"
 REQUIRED_COLUMNS = [
     "Title", "Rank", "Year", "Genre", "Director", "Cast",
     "IMDB Rating", "Rotten Tomatoes", "Metacritic Score", "Awards",
@@ -45,11 +47,15 @@ REQUIRED_COLUMNS = [
 ]
 
 def load_data():
-    if "movie_data" not in st.session_state:
+    if os.path.exists(BACKEND_PATH):
+        df = pd.read_csv(BACKEND_PATH)
+        st.session_state.movie_data = df
+    elif "movie_data" not in st.session_state:
         st.session_state.movie_data = pd.DataFrame(columns=REQUIRED_COLUMNS)
     return st.session_state.movie_data
 
 def save_data(df):
+    df.to_csv(BACKEND_PATH, index=False)
     st.session_state.movie_data = df
 
 def data_management_tab():
@@ -90,6 +96,8 @@ def data_management_tab():
 
     if st.button("Clear Data"):
         st.session_state.movie_data = pd.DataFrame(columns=REQUIRED_COLUMNS)
+        if os.path.exists(BACKEND_PATH):
+            os.remove(BACKEND_PATH)
         st.success("All movie data cleared.")
         st.experimental_rerun()
 
@@ -104,7 +112,7 @@ def analytics_tab():
     df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
     df["Box Office (Adj)"] = pd.to_numeric(df["Box Office (Adj)"], errors="coerce")
     df["Budget (Adj)"] = pd.to_numeric(df["Budget (Adj)"], errors="coerce")
-    df["Rotten Percent"] = df["Rotten Tomatoes"].str.replace("%", "").astype(float)
+    df["Rotten Percent"] = pd.to_numeric(df["Rotten Tomatoes"].str.replace("%", "", regex=False), errors="coerce")
 
     st.subheader("Interactive Analytics")
 
