@@ -7,8 +7,8 @@ def analytics_tab(df):
     st.subheader("Analytics")
 
     # --- Data Cleaning ---
-    df["Box Office"] = pd.to_numeric(df["Box Office"].str.replace("[$,]", "", regex=True), errors="coerce")
-    df["Budget"] = pd.to_numeric(df["Budget"].str.replace("[$,]", "", regex=True), errors="coerce")
+    df["Box Office"] = pd.to_numeric(df["Box Office"].astype(str).str.replace("[$,]", "", regex=True), errors="coerce")
+    df["Budget"] = pd.to_numeric(df["Budget"].astype(str).str.replace("[$,]", "", regex=True), errors="coerce")
 
     df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
     df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
