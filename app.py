@@ -99,9 +99,9 @@ def show_data_management(df):
 
             st.success(f"✅ Added: {len(added)} movies")
             if skipped:
-                st.info(f"⏭️ Skipped (already in collection): {len(skipped)}")
+                st.info(f"⏭️ Skipped (already in collection): {len(skipped)}\n{', '.join(skipped)}")
             if failed:
-                st.error(f"❌ Not found in TMDb: {len(failed)}")
+                st.error(f"❌ Not found in TMDb: {len(failed)}\n{', '.join(failed)}")
 
     st.header("➕ Add Single Movie")
     title_single = st.text_input("Movie title:")
@@ -132,12 +132,13 @@ def show_data_management(df):
         st.stop()
 
     st.header("🎯 Your Movie Collection")
+    st.markdown(f"**Total Movies: {len(df)}**", unsafe_allow_html=True)
     st.dataframe(df, use_container_width=True)
 
 def show_analytics(df):
     st.header("📊 Movie Collection Analytics")
 
-    if df.empty:
+    if df.empty or df["Title"].dropna().empty:
         st.warning("No data to analyze. Add movies first.")
         return
 
