@@ -11,7 +11,6 @@ REQUIRED_COLUMNS = [
     "Runtime", "Language", "Overview", "Date Added"
 ]
 
-@st.cache_data
 def load_data():
     if os.path.exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
