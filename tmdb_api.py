@@ -54,24 +54,20 @@ def fetch_movie_data(title):
     adj_box_office = adjust_for_inflation(box_office, year)
     adj_budget = adjust_for_inflation(budget, year)
 
-    # Metacritic from OMDb
+    # OMDb Call for Metacritic score
     metacritic = ""
     if OMDB_API_KEY:
-# OMDb Call for Metacritic score
-metacritic = ""
-if OMDB_API_KEY:
-    try:
-        omdb_resp = requests.get(OMDB_BASE_URL, params={
-            "t": title,
-            "y": year,
-            "apikey": OMDB_API_KEY
-        }).json()
-        st.write("OMDb response:", omdb_resp)  # Debug output
-        meta_raw = omdb_resp.get("Metascore", "")
-        if meta_raw and meta_raw != "N/A":
-            metacritic = meta_raw
-    except Exception as e:
-        st.write("OMDb fetch error:", e)
+        try:
+            omdb_resp = requests.get(OMDB_BASE_URL, params={
+                "t": title,
+                "y": year,
+                "apikey": OMDB_API_KEY
+            }).json()
+            meta_raw = omdb_resp.get("Metascore", "")
+            if meta_raw and meta_raw != "N/A":
+                metacritic = meta_raw
+        except Exception as e:
+            st.write("OMDb fetch error:", e)
 
     return {
         "Title": detail.get("title"),
