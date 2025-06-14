@@ -1,15 +1,14 @@
 # app.py
 import streamlit as st
 import pandas as pd
-import os
 from datetime import datetime
 from tmdb_api import fetch_movie_data
 from analytics_tab import analytics_tab
+import os
 
-# Streamlit page config
 st.set_page_config(page_title="MovieGraph", layout="wide")
 
-# Branding
+# Branding styles
 st.markdown("""
 <style>
     html, body, [class*="css"]  {
@@ -38,7 +37,6 @@ st.markdown("""
 st.markdown('<div class="title">MovieGraph</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle"><span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
 
-# Constants
 BACKEND_PATH = "data/backend_movie_data.csv"
 REQUIRED_COLUMNS = [
     "Title", "Rank", "Year", "Genre", "Director", "Cast",
@@ -47,19 +45,14 @@ REQUIRED_COLUMNS = [
     "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added"
 ]
 
-# Load existing data
 def load_data():
     if os.path.exists(BACKEND_PATH):
         return pd.read_csv(BACKEND_PATH)
     return pd.DataFrame(columns=REQUIRED_COLUMNS)
 
-# Save data
 def save_data(df):
     df.to_csv(BACKEND_PATH, index=False)
 
-# -----------------------------
-# TAB 1: DATA MANAGEMENT
-# -----------------------------
 def data_management_tab():
     st.subheader("Add Movies to Your Collection")
     title_input = st.text_area("Enter movie titles (one per line):")
@@ -102,25 +95,18 @@ def data_management_tab():
     st.subheader("Your Movie Collection")
     st.write(f"Total Movies: {len(df)}")
     st.dataframe(df.sort_values("Date Added", ascending=False), use_container_width=True)
+    return df
 
-# -----------------------------
-# TAB 3: TOP 100 (placeholder)
-# -----------------------------
-def top_100_tab():
-    st.subheader("Top 100")
-    st.info("Top 100 movie ranking functionality will be added here.")
-
-# -----------------------------
-# TAB NAVIGATION
-# -----------------------------
+# --- Tabs ---
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
 with tabs[0]:
-    data_management_tab()
+    df = data_management_tab()
 
 with tabs[1]:
-    df = load_data()
+    if 'df' not in locals():
+        df = load_data()
     analytics_tab(df)
 
 with tabs[2]:
-    top_100_tab()
+    st.subheader("Top 100 (Coming Soon)")
