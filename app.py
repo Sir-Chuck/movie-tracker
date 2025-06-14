@@ -58,7 +58,8 @@ with tabs[0]:
         title_input = st.text_area("Enter movie titles (one per line):")
         if st.button("Add Movies"):
             if title_input.strip():
-                movie_titles = [title.strip() for title in title_input.strip().split("") if title.strip()]  # fixed unterminated string
+                movie_titles = [title.strip() for title in title_input.strip().split("
+") if title.strip()]  # fixed unterminated string
                 existing_df = load_data()
                 with st.spinner("Fetching movie data..."):
                     new_movies, skipped, not_found = [], [], []
@@ -91,11 +92,19 @@ with tabs[0]:
         st.dataframe(df.sort_values("Date Added", ascending=False), use_container_width=True)
 
 with tabs[1]:
-    from app_sections import analytics_tab
+    
+    def analytics_tab():
+        st.subheader("Analytics")
+        st.info("Analytics functionality will be added here.")
+
     analytics_tab()
 
 with tabs[2]:
-    from app_sections import top_100_tab
+    
+    def top_100_tab():
+        st.subheader("Top 100")
+        st.info("Top 100 movie ranking functionality will be added here.")
+
     top_100_tab()
 
 # Note: Make sure the sidebar filter logic for Analytics is inside `analytics_tab()`
