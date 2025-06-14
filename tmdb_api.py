@@ -21,6 +21,22 @@ def adjust_for_inflation(amount, year):
     except:
         return ""
 
+def get_metacritic_score(title, year=None):
+    try:
+        params = {"t": title, "apikey": OMDB_API_KEY}
+        if year:
+            params["y"] = year
+
+        response = requests.get(OMDB_BASE_URL, params=params).json()
+        st.write("🎯 OMDb response:", response)  # Debug line
+
+        score = response.get("Metascore", "")
+        if score and score != "N/A":
+            return score
+    except Exception as e:
+        st.write("❌ OMDb error:", e)
+    return ""
+
 def fetch_movie_data(title):
     """Fetch movie data from TMDb and Metacritic from OMDb."""
     search_url = f"{TMDB_BASE_URL}/search/movie"
@@ -54,31 +70,7 @@ def fetch_movie_data(title):
     adj_box_office = adjust_for_inflation(box_office, year)
     adj_budget = adjust_for_inflation(budget, year)
 
-    # OMDb Call for Metacritic score
-    metacritic = ""
-    if OMDB_API_KEY:
-        try:
-            omdb_resp = requests.get(OMDB_BASE_URL, params={
-                "t": title,
-                "y": year,
-                "apikey": OMDB_API_KEY
-            }).json()
-
-            if omdb_resp.get("Response") == "False":
-                omdb_resp = requests.get(OMDB_BASE_URL, params={
-                    "t": title,
-                    "apikey": OMDB_API_KEY
-                }).json()
-
-            st.write("OMDb response:", omdb_resp)  # Debugging line
-
-            meta_raw = omdb_resp.get("Metascore", "")
-            if meta_raw and meta_raw != "N/A":
-                metacritic = meta_raw
-            else:
-                metacritic = ""
-        except Exception as e:
-            st.write("OMDb fetch error:", e)
+    metacritic = get_metacritic_score(title, year)
 
     return {
         "Title": detail.get("title"),
