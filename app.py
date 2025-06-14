@@ -4,7 +4,7 @@ from datetime import datetime
 from tmdb_api import fetch_movie_data
 import altair as alt
 import os
-from analytics_tab import render_analytics_tab 
+from analytics_tab import render_analytics_tab
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
 
@@ -50,6 +50,9 @@ def load_data():
     if os.path.exists(BACKEND_PATH):
         df = pd.read_csv(BACKEND_PATH)
         df["Year"] = pd.to_numeric(df["Year"], errors="coerce").fillna(0).astype(int)
+        df["Genre"] = df["Genre"].astype(str)
+        df["Director"] = df["Director"].astype(str)
+        df["Cast"] = df["Cast"].astype(str)
         for col in ["Budget", "Box Office", "IMDB Rating", "Rotten Tomatoes", "Metacritic Score"]:
             df[col] = pd.to_numeric(df[col], errors="coerce")
         return df
@@ -63,7 +66,7 @@ def validate_movie_data(data):
 
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
-# --- Data Management ---
+# --- Data Management Tab ---
 with tabs[0]:
     st.subheader("Add Movies to Your Collection")
     title_input = st.text_area("Enter movie titles (one per line):")
@@ -106,7 +109,7 @@ with tabs[0]:
         st.write(f"Total Movies: {len(df)}")
         st.dataframe(df.sort_values("Date Added", ascending=False), use_container_width=True)
 
-# --- Analytics ---
+# --- Analytics Tab ---
 with tabs[1]:
     df = load_data()
     st.subheader("Analytics")
@@ -115,7 +118,7 @@ with tabs[1]:
     else:
         render_analytics_tab(df, PALETTE)
 
-# --- Top 100 ---
+# --- Top 100 Tab ---
 with tabs[2]:
     def top_100_tab():
         st.subheader("Top 100")
