@@ -1,48 +1,39 @@
+# tmdb_api.py
 import requests
 import streamlit as st
 
-TMDB_API_KEY = st.secrets["tmdb"]["key"]
+TMDB_BASE_URL = "https://api.themoviedb.org/3"
+API_KEY = st.secrets["TMDB_API_KEY"]
 
-TMDB_SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
-TMDB_MOVIE_URL = "https://api.themoviedb.org/3/movie/{}"
-TMDB_CREDITS_URL = "https://api.themoviedb.org/3/movie/{}/credits"
+def fetch_movie_data(title):
+    """Search and fetch movie details and director from TMDb."""
+    search_url = f"{TMDB_BASE_URL}/search/movie"
+    search_params = {"api_key": API_KEY, "query": title}
+    search_resp = requests.get(search_url, params=search_params).json()
 
-def get_movie_data(title):
-    search_params = {
-        "api_key": TMDB_API_KEY,
-        "query": title
-    }
-    search_resp = requests.get(TMDB_SEARCH_URL, params=search_params)
-
-    if search_resp.status_code != 200 or not search_resp.json()["results"]:
+    results = search_resp.get("results") or []
+    if not results:
         return None
 
-    movie = search_resp.json()["results"][0]
+    movie = results[0]
     movie_id = movie["id"]
 
-    # Get more details and credits
-    details_resp = requests.get(TMDB_MOVIE_URL.format(movie_id), params={"api_key": TMDB_API_KEY})
-    credits_resp = requests.get(TMDB_CREDITS_URL.format(movie_id), params={"api_key": TMDB_API_KEY})
+    # Fetch full movie details
+    detail_url = f"{TMDB_BASE_URL}/movie/{movie_id}"
+    detail = requests.get(detail_url, params={"api_key": API_KEY}).json()
 
-    if details_resp.status_code != 200 or credits_resp.status_code != 200:
-        return None
-
-    details = details_resp.json()
-    credits = credits_resp.json()
-
-    # Extract director
-    director = next((c["name"] for c in credits["crew"] if c["job"] == "Director"), "N/A")
-
-    # Extract top 3 cast members
-    cast = [member["name"] for member in credits.get("cast", [])[:3]]
-    cast_str = ", ".join(cast)
+    # Fetch credits for director
+    credits_url = f"{TMDB_BASE_URL}/movie/{movie_id}/credits"
+    credits = requests.get(credits_url, params={"api_key": API_KEY}).json()
+    director = next((c["name"] for c in credits.get("crew", []) if c["job"] == "Director"), "")
 
     return {
-        "Title": movie["title"],
-        "Release Year": movie.get("release_date", "")[:4],
-        "Genre": ", ".join([g["name"] for g in details.get("genres", [])]),
+        "Title": detail.get("title"),
+        "Year": detail.get("release_date", "")[:4],
+        "Genre": ", ".join([g["name"] for g in detail.get("genres", [])]),
         "Director": director,
-        "Cast": cast_str,
-        "Runtime": details.get("runtime", "N/A"),
-        "TMDB Rating": details.get("vote_average", "N/A")
+        "IMDB Rating": detail.get("vote_average"),
+        "Runtime": f"{detail.get('runtime')} min" if detail.get("runtime") else "",
+        "Language": detail.get("original_language", "").upper(),
+        "Overview": detail.get("overview", "")
     }
