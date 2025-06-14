@@ -2,12 +2,13 @@
 import os
 import pandas as pd
 import streamlit as st
+from datetime import datetime
 from tmdb_api import fetch_movie_data
 
 DATA_FILE = "movies.csv"
 REQUIRED_COLUMNS = [
-    "Title", "Year", "Genre", "Director", "IMDB Rating",
-    "Runtime", "Language", "First Watch", "Rewatchability", "Personal Notes", "Overview"
+    "Title", "Year", "Genre", "Director", "Cast", "IMDB Rating",
+    "Runtime", "Language", "Overview", "Date Added"
 ]
 
 @st.cache_data
@@ -23,12 +24,18 @@ def is_duplicate(entry, df):
 
 def add_movies(titles, df):
     added, skipped, failed = [], [], []
-    for title in titles:
+    progress = st.progress(0, text="⏳ Fetching movies...")
+
+    total = len(titles)
+    for i, title in enumerate(titles):
         movie = fetch_movie_data(title)
+        progress.progress((i + 1) / total, text=f"Fetching: {title} ({i+1}/{total})")
+
         if not movie:
             failed.append(title)
             continue
 
+        movie["Date Added"] = datetime.today().strftime("%Y-%m-%d")
         for col in REQUIRED_COLUMNS:
             movie.setdefault(col, "")
 
@@ -37,6 +44,8 @@ def add_movies(titles, df):
             added.append(title)
         else:
             skipped.append(title)
+
+    progress.empty()
     return df, added, skipped, failed
 
 def main():
@@ -67,6 +76,12 @@ def main():
                 st.warning("That movie is already in your list.")
             else:
                 st.error("Could not find that movie.")
+
+    st.header("🧼 Data Management")
+    if st.button("❌ Clear All Movie Data"):
+        df = pd.DataFrame(columns=REQUIRED_COLUMNS)
+        df.to_csv(DATA_FILE, index=False)
+        st.warning("All movie data has been cleared.")
 
     st.header("🎯 Your Movie Collection")
     st.dataframe(df[REQUIRED_COLUMNS], use_container_width=True)
