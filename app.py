@@ -1,73 +1,53 @@
 import streamlit as st
 import pandas as pd
-import os
-from datetime import date
 from tmdb_api import get_movie_data
+from datetime import datetime
+import os
 
-# Constants
-DATA_PATH = "data/final_movie_data.csv"
+st.set_page_config(page_title="Movie Tracker", layout="wide")
+
+DATA_PATH = "data/tracked_movies.csv"
 
 # Ensure data directory exists
-os.makedirs("data", exist_ok=True)
+os.makedirs(os.path.dirname(DATA_PATH), exist_ok=True)
 
-# Load or initialize the dataframe
+# Load existing data
 if os.path.exists(DATA_PATH):
     df = pd.read_csv(DATA_PATH)
 else:
     df = pd.DataFrame(columns=[
-        "Title", "Release Year", "Genre", "Director", "Date Added"
+        "Title", "Release Year", "Genre", "Director", "Cast", 
+        "Runtime", "TMDB Rating", "Date Added"
     ])
 
-# App UI
 st.title("🎬 Movie Tracker")
-st.write("Track your watched movies with rich metadata from TMDB.")
 
-# Add Movies
+# Section to add new movies
 st.header("➕ Add Movies")
-movie_input = st.text_area(
-    "Enter movie titles (one per line):",
-    placeholder="e.g.\nOppenheimer\nThe Matrix\nLa La Land"
-)
+movie_input = st.text_area("Enter movie titles (one per line):", height=200)
+if st.button("Add to Tracker"):
+    new_movies = [m.strip() for m in movie_input.split("\n") if m.strip()]
+    added, skipped, not_found = [], [], []
 
-if st.button("Add Movies"):
-    titles = [title.strip() for title in movie_input.splitlines() if title.strip()]
-    added = []
-    duplicates = []
-    not_found = []
-    fuzzy_matches = []
-
-    for title in titles:
-        if title.lower() in df["Title"].str.lower().values:
-            duplicates.append(title)
+    for title in new_movies:
+        if title in df["Title"].values:
+            skipped.append(title)
             continue
 
-        result = get_movie_data(title)
-        if result:
-            result["Date Added"] = date.today().isoformat()
-            df = pd.concat([df, pd.DataFrame([result])], ignore_index=True)
-            added.append(result["Title"])
+        movie_data = get_movie_data(title)
+        if movie_data:
+            movie_data["Date Added"] = datetime.today().strftime("%Y-%m-%d")
+            df = pd.concat([df, pd.DataFrame([movie_data])], ignore_index=True)
+            added.append(title)
         else:
             not_found.append(title)
 
-    # Save updated DataFrame
     df.to_csv(DATA_PATH, index=False)
 
-    # Summary
-    st.success(f"✅ Added: {', '.join(added) if added else 'None'}")
-    st.info(f"🔁 Already tracked: {', '.join(duplicates) if duplicates else 'None'}")
-    st.warning(f"❌ Not found: {', '.join(not_found) if not_found else 'None'}")
+    st.success(f"✅ Added: {', '.join(added)}") if added else None
+    st.warning(f"⚠️ Already Tracked: {', '.join(skipped)}") if skipped else None
+    st.error(f"❌ Not Found: {', '.join(not_found)}") if not_found else None
 
-# Show tracked movies
-st.header("📋 Tracked Movies")
-if df.empty:
-    st.write("No movies tracked yet.")
-else:
-    st.dataframe(df)
-
-# Reset option
-if st.button("🔄 Reset all tracked movies"):
-    df = pd.DataFrame(columns=[
-        "Title", "Release Year", "Genre", "Director", "Date Added"
-    ])
-    df.to_csv(DATA_PATH, index=False)
-    st.success("All tracked movies have been deleted.")
+# Display tracked movies
+st.header("🎞️ Tracked Movies")
+st.dataframe(df.sort_values(by="Date Added", ascending=False).reset_index(drop=True), use_container_width=True)
