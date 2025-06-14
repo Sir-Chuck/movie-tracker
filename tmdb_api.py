@@ -63,9 +63,20 @@ def fetch_movie_data(title):
                 "y": year,
                 "apikey": OMDB_API_KEY
             }).json()
+
+            if omdb_resp.get("Response") == "False":
+                omdb_resp = requests.get(OMDB_BASE_URL, params={
+                    "t": title,
+                    "apikey": OMDB_API_KEY
+                }).json()
+
+            st.write("OMDb response:", omdb_resp)  # Debugging line
+
             meta_raw = omdb_resp.get("Metascore", "")
             if meta_raw and meta_raw != "N/A":
                 metacritic = meta_raw
+            else:
+                metacritic = ""
         except Exception as e:
             st.write("OMDb fetch error:", e)
 
