@@ -1,132 +1,79 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 from tmdb_api import fetch_movie_data
-import altair as alt
-import os
+from analytics import render_analytics_tab
+from datetime import datetime
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
 
-PALETTE = ['#f27802', '#2e0854', '#7786c8', '#708090', '#b02711']
-
-st.markdown("""
-<style>
-    html, body, [class*="css"]  {
-        font-family: Verdana;
-        color: #2a2a2a;
-    }
-    .title {
-        font-family: 'Courier New', monospace;
-        font-weight: normal;
-        font-size: 36px;
-        margin-bottom: 0;
-    }
-    .subtitle {
-        font-size: 18px;
-        letter-spacing: 2px;
-        font-weight: bold;
-    }
-    .subtitle span:nth-child(1) { color: #f27802; }
-    .subtitle span:nth-child(2) { color: #2e0854; }
-    .subtitle span:nth-child(3) { color: #7786c8; }
-    .subtitle span:nth-child(4) { color: #708090; }
-    .subtitle span:nth-child(5) { color: #b02711; }
-</style>
-""", unsafe_allow_html=True)
-
-st.markdown('<div class="title">MovieGraph</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle"><span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
-
-BACKEND_PATH = "data/backend_movie_data.csv"
-REQUIRED_COLUMNS = [
-    "Title", "Rank", "Year", "Genre", "Director", "Cast",
-    "IMDB Rating", "Rotten Tomatoes", "Metacritic Score", "Awards",
-    "Runtime", "Language", "Overview",
-    "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added"
-]
-
+# Load or initialize data
+@st.cache_data
 def load_data():
-    if os.path.exists(BACKEND_PATH):
-        df = pd.read_csv(BACKEND_PATH)
-        df["Year"] = pd.to_numeric(df["Year"], errors="coerce").fillna(0).astype(int)
-        df["Genre"] = df["Genre"].astype(str)
-        df["Director"] = df["Director"].astype(str)
-        df["Cast"] = df["Cast"].astype(str)
-        for col in ["Budget", "Box Office", "IMDB Rating", "Rotten Tomatoes", "Metacritic Score"]:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
-        return df
-    return pd.DataFrame(columns=REQUIRED_COLUMNS)
+    try:
+        return pd.read_csv("movie_data.csv")
+    except FileNotFoundError:
+        return pd.DataFrame(columns=[
+            "Title", "Year", "Genre", "Director", "Cast", "Runtime",
+            "Budget", "BoxOffice", "FirstWatch", "Rewatchability",
+            "Notes", "Added"
+        ])
 
-def validate_movie_data(data):
-    for col in REQUIRED_COLUMNS:
-        if col not in data:
-            data[col] = None
-    return {k: data.get(k) for k in REQUIRED_COLUMNS}
+df = load_data()
 
-tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
+# Tabs
+tab = st.sidebar.radio("Navigation", ["Data Management", "Analytics", "Top 100"])
 
-# --- Data Management Tab ---
-with tabs[0]:
-    st.subheader("Add Movies to Your Collection")
-    title_input = st.text_area("Enter movie titles (one per line):")
-    if st.button("Add Movies"):
-        if title_input.strip():
-            movie_titles = [title.strip() for title in title_input.strip().split("\n") if title.strip()]
-            existing_df = load_data()
-            with st.spinner("Fetching movie data..."):
-                new_movies, skipped, not_found = [], [], []
-                progress_bar = st.progress(0)
-                for i, title in enumerate(movie_titles):
-                    if title in existing_df["Title"].values:
-                        skipped.append(title)
-                        continue
-                    data = fetch_movie_data(title)
-                    if data:
-                        validated = validate_movie_data(data)
-                        new_movies.append(validated)
-                    else:
-                        not_found.append(title)
-                    progress_bar.progress((i + 1) / len(movie_titles))
-                if new_movies:
-                    df_new = pd.DataFrame(new_movies)
-                    df_new["Date Added"] = datetime.now().strftime("%Y-%m-%d")
-                    updated_df = pd.concat([existing_df, df_new], ignore_index=True)
-                    updated_df.to_csv(BACKEND_PATH, index=False)
-                    st.success(f"✅ Added: {len(new_movies)} movies")
-                    if skipped:
-                        st.warning(f"⚠️ Skipped: {', '.join(skipped)}")
-                    if not_found:
-                        st.error(f"❌ Not found: {', '.join(not_found)}")
+# Filters (only on Analytics tab)
+if tab == "Analytics":
+    st.sidebar.markdown("## Filters")
+    min_year, max_year = st.sidebar.slider("Year", 1950, datetime.now().year, (2000, datetime.now().year))
+    selected_genres = st.sidebar.multiselect("Genre", options=sorted(df["Genre"].dropna().unique()))
+    selected_directors = st.sidebar.multiselect("Director", options=sorted(df["Director"].dropna().unique()))
+
+    filtered_df = df[
+        (df["Year"].astype(str).str[:4].astype(int).between(min_year, max_year))
+    ]
+
+    if selected_genres:
+        filtered_df = filtered_df[filtered_df["Genre"].isin(selected_genres)]
+
+    if selected_directors:
+        filtered_df = filtered_df[filtered_df["Director"].isin(selected_directors)]
+else:
+    filtered_df = df.copy()
+
+# Data Management Tab
+if tab == "Data Management":
+    st.title("🎬 MovieGraph: Data Management")
+    st.write("Manage your movie list.")
+
+    with st.form("add_movie_form"):
+        title_input = st.text_input("Movie Title")
+        year_input = st.text_input("Release Year (optional)")
+        submit = st.form_submit_button("Add Movie")
+
+        if submit and title_input:
+            movie = fetch_movie_data(title_input, year_input)
+            if movie:
+                if movie["Title"] not in df["Title"].values:
+                    movie["Added"] = datetime.now().strftime("%Y-%m-%d")
+                    df = pd.concat([df, pd.DataFrame([movie])], ignore_index=True)
+                    df.to_csv("movie_data.csv", index=False)
+                    st.success(f"✅ Added: {movie['Title']}")
                 else:
-                    st.info("No new movies were added.")
+                    st.warning("⚠️ Movie already in list.")
+            else:
+                st.error("❌ Could not find movie.")
 
-    df = load_data()
-    st.subheader("Your Movie Collection")
-    if st.button("Clear All Data"):
-        if os.path.exists(BACKEND_PATH):
-            os.remove(BACKEND_PATH)
-            st.success("All movie data cleared.")
-        st.stop()
+    st.dataframe(df)
 
-    if df.empty:
-        st.info("No movies in your collection yet.")
-    else:
-        st.write(f"Total Movies: {len(df)}")
-        st.dataframe(df.sort_values("Date Added", ascending=False), use_container_width=True)
+# Analytics Tab
+elif tab == "Analytics":
+    st.title("📊 MovieGraph: Analytics")
+    render_analytics_tab(filtered_df)
 
-# --- Analytics Tab ---
-with tabs[1]:
-    df = load_data()
-    st.subheader("Analytics")
-    if df.empty:
-        st.info("Add movies to view analytics.")
-    else:
-        from analytics_tab import render_analytics_tab
-        render_analytics_tab(df, PALETTE)
+# Top 100 Tab
+elif tab == "Top 100":
+    st.title("🏆 MovieGraph: Top 100")
+    st.write("Coming soon...")
 
-# --- Top 100 Tab ---
-with tabs[2]:
-    def top_100_tab():
-        st.subheader("Top 100")
-        st.info("Top 100 movie ranking functionality will be added here.")
-    top_100_tab()
