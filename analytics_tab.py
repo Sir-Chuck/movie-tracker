@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -10,6 +11,7 @@ def explode_column(df, col):
     return df
 
 def render_analytics_tab(df, palette):
+    # Sidebar filters scoped to Analytics tab only
     with st.sidebar:
         st.markdown("### Filters")
         years = df["Year"].dropna()
@@ -48,17 +50,19 @@ def render_analytics_tab(df, palette):
 
     rating_choice = st.selectbox("Select Rating for Histogram", list(rating_fields.keys()))
     valid_col = rating_fields[rating_choice]
-    hist_df = filtered_df.dropna(subset=[valid_col])
-    if not hist_df.empty:
-        st.altair_chart(
-            alt.Chart(hist_df).mark_bar(color=palette[0]).encode(
-                x=alt.X(f"{valid_col}:Q", bin=True),
-                y='count()'
-            ).properties(title=f"Distribution of {rating_choice}", width=600),
-            use_container_width=True
-        )
-    else:
-        st.warning(f"No data for {rating_choice}")
+    if valid_col in filtered_df.columns:
+        filtered_df[valid_col] = pd.to_numeric(filtered_df[valid_col], errors='coerce')
+        hist_df = filtered_df.dropna(subset=[valid_col])
+        if not hist_df.empty:
+            st.altair_chart(
+                alt.Chart(hist_df).mark_bar(color=palette[0]).encode(
+                    x=alt.X(f"{valid_col}:Q", bin=True),
+                    y='count()'
+                ).properties(title=f"Distribution of {rating_choice}", width=600),
+                use_container_width=True
+            )
+        else:
+            st.warning(f"No data for {rating_choice}")
 
     scatter_df = filtered_df.dropna(subset=["IMDB Rating", "Metacritic Score"])
     if not scatter_df.empty:
