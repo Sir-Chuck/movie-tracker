@@ -1,4 +1,3 @@
-# app.py
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -8,7 +7,7 @@ import os
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
 
-# Branding styles
+# Branding
 st.markdown("""
 <style>
     html, body, [class*="css"]  {
@@ -50,61 +49,57 @@ def load_data():
         return pd.read_csv(BACKEND_PATH)
     return pd.DataFrame(columns=REQUIRED_COLUMNS)
 
-# Display all tabs using Streamlit tabs
+# Tabs
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
 with tabs[0]:
-    def data_management_tab():
-        st.subheader("Add Movies to Your Collection")
-        title_input = st.text_area("Enter movie titles (one per line):")
-        if st.button("Add Movies"):
-            if title_input.strip():
-                movie_titles = [title.strip() for title in title_input.strip().split("\n") if title.strip()]
-                existing_df = load_data()
-                with st.spinner("Fetching movie data..."):
-                    new_movies, skipped, not_found = [], [], []
-                    progress = st.progress(0)
-                    for i, title in enumerate(movie_titles):
-                        if title in existing_df["Title"].values:
-                            skipped.append(title)
-                            progress.progress((i + 1) / len(movie_titles))
-                            continue
-                        data = fetch_movie_data(title)
-                        if data:
-                            new_movies.append(data)
-                        else:
-                            not_found.append(title)
-                        progress.progress((i + 1) / len(movie_titles))
-                if new_movies:
-                    df_new = pd.DataFrame(new_movies)
-                    df_new["Date Added"] = datetime.now().strftime("%Y-%m-%d")
-                    updated_df = pd.concat([existing_df, df_new], ignore_index=True)
-                    updated_df.to_csv(BACKEND_PATH, index=False)
-                    st.success(f"Added {len(new_movies)} movies. Skipped: {len(skipped)}. Not found: {len(not_found)}")
-                    if skipped:
-                        st.warning(f"Skipped: {', '.join(skipped)}")
-                    if not_found:
-                        st.error(f"Not found: {', '.join(not_found)}")
-                else:
-                    st.info("No new movies were added.")
+    st.subheader("Add Movies to Your Collection")
+    title_input = st.text_area("Enter movie titles (one per line):")
 
-        if st.button("Clear All Movie Data"):
-            if os.path.exists(BACKEND_PATH):
-                os.remove(BACKEND_PATH)
-                st.success("All movie data cleared.")
+    if st.button("Add Movies"):
+        if title_input.strip():
+            movie_titles = [title.strip() for title in title_input.strip().split("\n") if title.strip()]
+            existing_df = load_data()
+            with st.spinner("Fetching movie data..."):
+                progress_bar = st.progress(0)
+                new_movies, skipped, not_found = [], [], []
+                for i, title in enumerate(movie_titles):
+                    if title in existing_df["Title"].values:
+                        skipped.append(title)
+                        continue
+                    data = fetch_movie_data(title)
+                    if data:
+                        new_movies.append(data)
+                    else:
+                        not_found.append(title)
+                    progress_bar.progress((i + 1) / len(movie_titles))
 
-        df = load_data()
-        st.subheader("Your Movie Collection")
-        st.write(f"Total Movies: {len(df)}")
-        st.dataframe(df.sort_values("Date Added", ascending=False), use_container_width=True)
+            if new_movies:
+                df_new = pd.DataFrame(new_movies)
+                df_new["Date Added"] = datetime.now().strftime("%Y-%m-%d")
+                updated_df = pd.concat([existing_df, df_new], ignore_index=True)
+                updated_df.to_csv(BACKEND_PATH, index=False)
+                st.success(f"Added {len(new_movies)} movies. Skipped: {len(skipped)}. Not found: {len(not_found)}")
+                if skipped:
+                    st.warning(f"Skipped: {', '.join(skipped)}")
+                if not_found:
+                    st.error(f"Not found: {', '.join(not_found)}")
+            else:
+                st.info("No new movies were added.")
 
-    data_management_tab()
+    if st.button("Clear All Data"):
+        if os.path.exists(BACKEND_PATH):
+            os.remove(BACKEND_PATH)
+            st.success("All movie data cleared.")
+
+    df = load_data()
+    st.subheader("Your Movie Collection")
+    st.write(f"Total Movies: {len(df)}")
+    st.dataframe(df.sort_values("Date Added", ascending=False), use_container_width=True)
 
 with tabs[1]:
-    analytics_tab(load_data())
+    df = load_data()
+    analytics_tab(df)
 
 with tabs[2]:
-    def top_100_tab():
-        st.subheader("Top 100")
-        st.info("Top 100 movie ranking functionality will be added here.")
-    top_100_tab()
+    st.subheader("Top 100 (Coming Soon)")
