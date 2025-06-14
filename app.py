@@ -9,6 +9,15 @@ try:
 except FileNotFoundError:
     df = pd.DataFrame()
 
+from tmdb_api import search_movie
+
+# TEMP: Run a known working search
+test = search_movie("Avengers: Endgame")
+st.subheader("🔍 TMDB Debug")
+st.write("Test results for 'Avengers: Endgame':")
+st.write(test[:3])  # Show a preview of the results
+
+
 st.title("🎬 My Movie Tracker")
 
 st.subheader("📋 Tracked Movies")
