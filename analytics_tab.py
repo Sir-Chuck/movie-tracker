@@ -40,29 +40,41 @@ def render_analytics_tab(df, palette):
     if selected_actor != "All":
         filtered_df = filtered_df[filtered_df["Cast"].str.contains(selected_actor, na=False)]
 
-    # 1. Ratings Histogram
-    rating_choice = st.selectbox("Select Rating for Histogram", ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
-    st.altair_chart(
-        alt.Chart(filtered_df.dropna(subset=[rating_choice])).mark_bar(color=palette[0]).encode(
-            x=alt.X(f"{rating_choice}:Q", bin=True),
-            y='count()'
-        ).properties(title=f"Distribution of {rating_choice}", width=600),
-        use_container_width=True
-    )
+    rating_fields = {
+        "IMDB Rating": "IMDB Rating",
+        "Rotten Tomatoes": "Rotten Tomatoes",
+        "Metacritic Score": "Metacritic Score"
+    }
 
-    # 2. Ratings Scatter
-    scatter = alt.Chart(filtered_df.dropna(subset=["IMDB Rating", "Metacritic Score"])).mark_circle().encode(
-        x=alt.X("IMDB Rating", scale=alt.Scale(zero=False)),
-        y=alt.Y("Metacritic Score", scale=alt.Scale(zero=False)),
-        color=alt.Color("Metacritic Score", scale=alt.Scale(scheme='redpurple')),
-        size="Metacritic Score",
-        tooltip=["Title", "IMDB Rating", "Rotten Tomatoes", "Metacritic Score", "Year", "Director"]
-    ).properties(title="IMDB vs Metacritic Ratings", width=600)
-    st.altair_chart(scatter, use_container_width=True)
+    rating_choice = st.selectbox("Select Rating for Histogram", list(rating_fields.keys()))
+    valid_col = rating_fields[rating_choice]
+    hist_df = filtered_df.dropna(subset=[valid_col])
+    if not hist_df.empty:
+        st.altair_chart(
+            alt.Chart(hist_df).mark_bar(color=palette[0]).encode(
+                x=alt.X(f"{valid_col}:Q", bin=True),
+                y='count()'
+            ).properties(title=f"Distribution of {rating_choice}", width=600),
+            use_container_width=True
+        )
+    else:
+        st.warning(f"No data for {rating_choice}")
 
-    # 3. Top 10 Table
+    scatter_df = filtered_df.dropna(subset=["IMDB Rating", "Metacritic Score"])
+    if not scatter_df.empty:
+        st.altair_chart(
+            alt.Chart(scatter_df).mark_circle().encode(
+                x="IMDB Rating",
+                y="Metacritic Score",
+                color=alt.Color("Metacritic Score", scale=alt.Scale(scheme='redpurple')),
+                size="Metacritic Score",
+                tooltip=["Title", "IMDB Rating", "Rotten Tomatoes", "Metacritic Score", "Year", "Director"]
+            ).properties(title="IMDB vs Metacritic Ratings", width=600),
+            use_container_width=True
+        )
+
     category = st.selectbox("Top 10 By", ["Year", "Genre", "Director", "Cast"])
-    top_df = explode_column(filtered_df, category).copy()
+    top_df = explode_column(filtered_df, category)
     summary = top_df.groupby(category).agg(
         Count=("Title", "count"),
         Avg_IMDB=("IMDB Rating", "mean"),
@@ -70,45 +82,48 @@ def render_analytics_tab(df, palette):
         Avg_Meta=("Metacritic Score", "mean"),
         Avg_Box=("Box Office", "mean"),
         Sum_Box=("Box Office", "sum")
-    ).sort_values("Count", ascending=False).head(10).reset_index()
-    summary = summary.round({"Avg_IMDB": 2, "Avg_RT": 2, "Avg_Meta": 2, "Avg_Box": 2, "Sum_Box": 2})
+    ).sort_values("Count", ascending=False).head(10).round(2).reset_index()
     st.dataframe(summary)
 
-    # 4. Grouped Scatter
     group_col = st.selectbox("Bubble Chart Group By", ["Genre", "Year", "Director", "Cast"])
-    grouped_df = explode_column(filtered_df, group_col).copy()
+    grouped_df = explode_column(filtered_df, group_col)
     bubble = grouped_df.groupby(group_col).agg(
         Avg_IMDB=("IMDB Rating", "mean"),
         Avg_RT=("Rotten Tomatoes", "mean"),
         Avg_Meta=("Metacritic Score", "mean"),
         Count=("Title", "count")
     ).dropna().reset_index()
-    chart = alt.Chart(bubble).mark_circle().encode(
-        x=alt.X("Avg_IMDB", title="Avg IMDB Rating"),
-        y=alt.Y("Avg_RT", title="Avg Rotten Tomatoes"),
-        size="Count",
-        color=alt.Color("Avg_Meta", scale=alt.Scale(scheme='redpurple')),
-        tooltip=[group_col, "Count", "Avg_IMDB", "Avg_RT", "Avg_Meta"]
-    ).properties(title="Grouped Rating Comparison", width=600)
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(
+        alt.Chart(bubble).mark_circle().encode(
+            x="Avg_IMDB",
+            y="Avg_RT",
+            size="Count",
+            color=alt.Color("Avg_Meta", scale=alt.Scale(scheme='redpurple')),
+            tooltip=[group_col, "Count", "Avg_IMDB", "Avg_RT", "Avg_Meta"]
+        ).properties(title="Grouped Rating Comparison", width=600),
+        use_container_width=True
+    )
 
-    # 5. Budget vs Box Office Scatter
-    scatter2 = alt.Chart(filtered_df.dropna(subset=["Budget", "Box Office", "IMDB Rating", "Rotten Tomatoes"])).mark_circle().encode(
-        x=alt.X("Budget", title="Budget ($)", axis=alt.Axis(format="$,.2f")),
-        y=alt.Y("Box Office", title="Box Office ($)", axis=alt.Axis(format="$,.2f")),
-        size="Rotten Tomatoes",
-        color=alt.Color("IMDB Rating", scale=alt.Scale(scheme="redpurple")),
-        tooltip=["Title", "Budget", "Box Office", "IMDB Rating", "Rotten Tomatoes"]
-    ).properties(title="Budget vs Box Office", width=600)
-    st.altair_chart(scatter2, use_container_width=True)
+    scatter2_df = filtered_df.dropna(subset=["Budget", "Box Office", "IMDB Rating", "Rotten Tomatoes"])
+    if not scatter2_df.empty:
+        st.altair_chart(
+            alt.Chart(scatter2_df).mark_circle().encode(
+                x=alt.X("Budget", axis=alt.Axis(format="$,.2f")),
+                y=alt.Y("Box Office", axis=alt.Axis(format="$,.2f")),
+                size="Rotten Tomatoes",
+                color=alt.Color("IMDB Rating", scale=alt.Scale(scheme='redpurple')),
+                tooltip=["Title", "Budget", "Box Office", "IMDB Rating", "Rotten Tomatoes"]
+            ).properties(title="Budget vs Box Office", width=600),
+            use_container_width=True
+        )
 
-    # 6. Dual Axis Year Trend
-    rating_metric = st.selectbox("Metric for Average Rating", ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
+    metric_choice = st.selectbox("Metric for Average Rating", list(rating_fields.keys()))
+    metric_col = rating_fields[metric_choice]
     yearly = filtered_df.groupby("Year").agg(
         Movie_Count=("Title", "count"),
-        Avg_Rating=(rating_metric, "mean")
+        Avg_Rating=(metric_col, "mean")
     ).dropna().reset_index()
-    base = alt.Chart(yearly).encode(x=alt.X("Year:O", axis=alt.Axis(format="d")))
-    bars = base.mark_bar(color=palette[0]).encode(y=alt.Y("Movie_Count", axis=alt.Axis(title="Count")))
-    line = base.mark_line(color=palette[2]).encode(y=alt.Y("Avg_Rating", axis=alt.Axis(title=f"Avg {rating_metric}")))
+    base = alt.Chart(yearly).encode(x=alt.X("Year:O"))
+    bars = base.mark_bar(color=palette[0]).encode(y="Movie_Count")
+    line = base.mark_line(color=palette[2]).encode(y="Avg_Rating")
     st.altair_chart((bars + line).resolve_scale(y="independent").properties(title="Movies Over Time"), use_container_width=True)
