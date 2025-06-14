@@ -50,8 +50,46 @@ REQUIRED_COLUMNS = [
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
 with tabs[0]:
-    from app_sections import data_management_tab
-    data_management_tab()
+    
+    from tmdb_api import fetch_movie_data
+
+    def data_management_tab():
+        st.subheader("Add Movies to Your Collection")
+        title_input = st.text_area("Enter movie titles (one per line):")
+        if st.button("Add Movies"):
+            if title_input.strip():
+                movie_titles = [title.strip() for title in title_input.strip().split("
+") if title.strip()]
+                existing_df = load_data()
+                with st.spinner("Fetching movie data..."):
+                    new_movies, skipped, not_found = [], [], []
+                    for i, title in enumerate(movie_titles):
+                        if title in existing_df["Title"].values:
+                            skipped.append(title)
+                            continue
+                        data = fetch_movie_data(title)
+                        if data:
+                            new_movies.append(data)
+                        else:
+                            not_found.append(title)
+                        st.progress((i + 1) / len(movie_titles))
+                if new_movies:
+                    df_new = pd.DataFrame(new_movies)
+                    df_new["Date Added"] = datetime.now().strftime("%Y-%m-%d")
+                    updated_df = pd.concat([existing_df, df_new], ignore_index=True)
+                    updated_df.to_csv(BACKEND_PATH, index=False)
+                    st.success(f"Added {len(new_movies)} movies. Skipped: {len(skipped)}. Not found: {len(not_found)}")
+                    if skipped:
+                        st.warning(f"Skipped: {', '.join(skipped)}")
+                    if not_found:
+                        st.error(f"Not found: {', '.join(not_found)}")
+                else:
+                    st.info("No new movies were added.")
+
+        df = load_data()
+        st.subheader("Your Movie Collection")
+        st.write(f"Total Movies: {len(df)}")
+        st.dataframe(df.sort_values("Date Added", ascending=False), use_container_width=True)
 
 with tabs[1]:
     from app_sections import analytics_tab
