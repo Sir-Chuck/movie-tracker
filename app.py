@@ -92,16 +92,19 @@ def main():
                 st.error("❌ Could not find that movie")
 
     st.header("🧼 Data Management")
+    if "data_cleared" not in st.session_state:
+        st.session_state["data_cleared"] = False
+    
     if st.button("❌ Clear All Movie Data"):
         df = pd.DataFrame(columns=REQUIRED_COLUMNS)
         df.to_csv(DATA_FILE, index=False)
-        st.session_state.data_cleared = True
+        st.session_state["data_cleared"] = True
         st.success("All movie data has been cleared. Reloading...")
-
-    # Trigger reload only once
-    if st.session_state.get("data_cleared", False):
-        st.session_state.data_cleared = False
-        st.experimental_rerun()
+    
+    # Trigger rerun after clearing
+    if st.session_state["data_cleared"]:
+        st.session_state["data_cleared"] = False
+        st.stop()  # Safe way to end and refresh the session
 
     st.header("🎯 Your Movie Collection")
     st.dataframe(df[REQUIRED_COLUMNS], use_container_width=True)
