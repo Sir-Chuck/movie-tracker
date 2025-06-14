@@ -28,8 +28,14 @@ def get_metacritic_score(title, year=None):
             params["y"] = year
 
         response = requests.get(OMDB_BASE_URL, params=params).json()
-        st.write("🎯 OMDb response:", response)  # Debug line
+        st.write("🎯 OMDb response:", response)  # Debug
 
+        # Try Ratings first (more reliable)
+        for rating in response.get("Ratings", []):
+            if rating["Source"] == "Metacritic":
+                return rating["Value"].split("/")[0]  # Returns '74' from '74/100'
+
+        # Fallback to Metascore field
         score = response.get("Metascore", "")
         if score and score != "N/A":
             return score
