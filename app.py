@@ -58,7 +58,70 @@ def save_data(df):
     df.to_csv(BACKEND_PATH, index=False)
     st.session_state.movie_data = df
 
-# (data_management_tab and analytics_tab already defined earlier in the script)
+def data_management_tab():
+    st.subheader("Your Movie Collection")
+    df = load_data()
+    st.write(f"Total Movies: {len(df)}")
+    st.dataframe(df[REQUIRED_COLUMNS], use_container_width=True)
+
+    st.subheader("Add Movies")
+    movie_input = st.text_area("Enter movie titles (one per line):")
+    if st.button("Add Movies"):
+        new_titles = [m.strip() for m in movie_input.split("\n") if m.strip()]
+        existing_titles = df["Title"].str.lower().tolist()
+        added, skipped, not_found = [], [], []
+
+        with st.spinner("Fetching movie data..."):
+            for title in new_titles:
+                if title.lower() in existing_titles:
+                    skipped.append(title)
+                    continue
+                data = fetch_movie_data(title)
+                if data:
+                    data["Date Added"] = datetime.now().strftime("%Y-%m-%d")
+                    df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
+                    added.append(title)
+                else:
+                    not_found.append(title)
+
+        save_data(df)
+        st.success(f"✅ Added: {len(added)}, Skipped: {len(skipped)}, Not Found: {len(not_found)}")
+        if skipped:
+            st.info("Skipped: " + ", ".join(skipped))
+        if not_found:
+            st.warning("Not Found: " + ", ".join(not_found))
+
+    if st.button("Clear All Data"):
+        st.session_state.movie_data = pd.DataFrame(columns=REQUIRED_COLUMNS)
+        save_data(st.session_state.movie_data)
+        st.success("All movie data cleared.")
+
+def analytics_tab():
+    st.subheader("Analytics Dashboard")
+    df = load_data()
+    if df.empty:
+        st.info("No data to analyze. Add movies first.")
+        return
+
+    # Clean numeric columns
+    df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
+    df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
+    df["Rotten Percent"] = pd.to_numeric(df["Rotten Tomatoes"].str.replace("%", "", regex=False), errors="coerce")
+
+    if st.checkbox("Show only Top 100"):
+        df = df[df["Rank"].notna() & (df["Rank"] != "")]
+
+    st.markdown("### Ratings Distribution")
+    st.bar_chart(df[["IMDB Rating", "Metacritic Score", "Rotten Percent"]])
+
+    st.markdown("### Ratings Scatter")
+    chart = alt.Chart(df).mark_circle(size=60).encode(
+        x='IMDB Rating',
+        y='Rotten Percent',
+        color='Genre',
+        tooltip=['Title', 'Director', 'Year']
+    ).interactive()
+    st.altair_chart(chart, use_container_width=True)
 
 def top_100_tab():
     st.subheader("Top 100 Movies (Upload and Rank)")
