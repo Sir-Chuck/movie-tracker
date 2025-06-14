@@ -4,7 +4,7 @@ from datetime import datetime
 from tmdb_api import fetch_movie_data
 import altair as alt
 import os
-from analytics_tab import render_analytics_tab
+from analytics_tab import render_analytics_tab 
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
 
