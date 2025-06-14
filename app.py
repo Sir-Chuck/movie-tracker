@@ -1,81 +1,76 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 from datetime import datetime
-from tmdb_api import search_movie, get_best_match, get_movie_details
 import os
+from tmdb_api import get_movie_data
 
-# Ensure the data directory exists
+# Ensure data directory exists
 os.makedirs("data", exist_ok=True)
 
-
-# Load or create CSV
 DATA_PATH = "data/final_movie_data.csv"
+
+# Load existing data
 if os.path.exists(DATA_PATH):
     df = pd.read_csv(DATA_PATH)
 else:
-    df = pd.DataFrame(columns=[
-        "title", "release_year", "genres", "runtime", "overview",
-        "director", "cast", "tmdb_id", "date_added"
-    ])
+    df = pd.DataFrame()
 
+# Page config
+st.set_page_config(page_title="🎬 Movie Tracker", layout="wide")
 st.title("🎬 Movie Tracker")
 
-# -- ADD MOVIES --
-st.header("➕ Add Movies")
-titles_input = st.text_area("Enter movie titles (one per line)")
-if st.button("Search & Add"):
-    to_add, skipped, not_found = [], [], []
-    input_titles = [t.strip() for t in titles_input.strip().split("\n") if t.strip()]
+st.markdown("Enter movie titles (one per line or separated by commas):")
 
-    for title in input_titles:
-        if title.lower() in df['title'].str.lower().values:
-            skipped.append(title)
-            continue
+user_input = st.text_area("Add new movies", height=200)
 
-        results = search_movie(title)
-        match, score = get_best_match(title, results)
+if st.button("Add Movies"):
+    if user_input.strip():
+        # Handle both comma- and newline-separated inputs
+        raw_titles = user_input.replace(",", "\n").splitlines()
+        input_titles = [title.strip() for title in raw_titles if title.strip()]
 
-        if match and score > 75:
-            movie_data = get_movie_details(match["id"])
-            director = ""
-            cast = []
-            for p in movie_data.get("credits", {}).get("crew", []):
-                if p["job"] == "Director":
-                    director = p["name"]
-                    break
-            for a in movie_data.get("credits", {}).get("cast", [])[:5]:
-                cast.append(a["name"])
+        added = []
+        skipped = []
+        not_found = []
+        fuzzy_matches = []
 
-            new_row = {
-                "title": movie_data.get("title", ""),
-                "release_year": movie_data.get("release_date", "")[:4],
-                "genres": ", ".join([g["name"] for g in movie_data.get("genres", [])]),
-                "runtime": movie_data.get("runtime"),
-                "overview": movie_data.get("overview", ""),
-                "director": director,
-                "cast": ", ".join(cast),
-                "tmdb_id": movie_data.get("id"),
-                "date_added": datetime.today().strftime("%Y-%m-%d")
-            }
-            to_add.append(new_row)
-        elif results:
-            # Let user preview what was found
-            preview = [r["title"] for r in results[:3]]
-            st.warning(f"No strong match for '{title}'. Top results: {preview}")
-            not_found.append(title)
-        else:
-            not_found.append(title)
+        existing_titles = set(df['title'].str.lower()) if not df.empty else set()
 
-    if to_add:
-        df = pd.concat([df, pd.DataFrame(to_add)], ignore_index=True)
+        for title in input_titles:
+            if title.lower() in existing_titles:
+                skipped.append(title)
+                continue
+
+            result = get_movie_data(title)
+
+            if result and result.get("title"):
+                result["date_added"] = datetime.now().strftime("%Y-%m-%d")
+                df = pd.concat([df, pd.DataFrame([result])], ignore_index=True)
+                added.append(result["title"])
+            elif result and result.get("fuzzy_match"):
+                not_found.append(title)
+                fuzzy_matches.append((title, result["fuzzy_match"]))
+            else:
+                not_found.append(title)
+
         df.to_csv(DATA_PATH, index=False)
-        st.success(f"✅ Added {len(to_add)} new movie(s).")
 
-    if skipped:
-        st.info(f"⏭ Skipped (already tracked): {', '.join(skipped)}")
-    if not_found:
-        st.error(f"❌ No match found: {', '.join(not_found)}")
+        # Feedback to user
+        if added:
+            st.success(f"✅ Added: {', '.join(added)}")
+        if skipped:
+            st.info(f"🔁 Already tracked: {', '.join(skipped)}")
+        if not_found:
+            st.warning(f"❌ Not found: {', '.join(not_found)}")
+        if fuzzy_matches:
+            st.markdown("### 🔎 Fuzzy Match Suggestions")
+            for orig, match in fuzzy_matches:
+                st.markdown(f"- **{orig}** → _{match}_")
 
-# -- VIEW DATA --
-st.header("📊 Tracked Movies")
-st.dataframe(df.sort_values(by="date_added", ascending=False))
+    else:
+        st.warning("Please enter at least one movie title.")
+
+# Show current data
+if not df.empty:
+    st.markdown("### 🎞️ Your Tracked Movies")
+    st.dataframe(df.sort_values(by="date_added", ascending=False))
