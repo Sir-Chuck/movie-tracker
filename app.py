@@ -88,8 +88,13 @@ def main():
     if st.button("❌ Clear All Movie Data"):
         df = pd.DataFrame(columns=REQUIRED_COLUMNS)
         df.to_csv(DATA_FILE, index=False)
-        st.warning("All movie data has been cleared.")
-        st.experimental_rerun()  # force reload
+        st.session_state.data_cleared = True
+        st.success("All movie data has been cleared. Reloading...")
+
+    # Trigger reload only once
+    if st.session_state.get("data_cleared", False):
+        st.session_state.data_cleared = False
+        st.experimental_rerun()
 
     st.header("🎯 Your Movie Collection")
     st.dataframe(df[REQUIRED_COLUMNS], use_container_width=True)
