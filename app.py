@@ -64,6 +64,7 @@ with tabs[0]:
                 movie_titles = [title.strip() for title in title_input.strip().split("\n") if title.strip()]
                 existing_df = load_data()
                 with st.spinner("Fetching movie data..."):
+                    progress_bar = st.progress(0)
                     new_movies, skipped, not_found = [], [], []
                     for i, title in enumerate(movie_titles):
                         if title in existing_df["Title"].values:
@@ -74,7 +75,7 @@ with tabs[0]:
                             new_movies.append(data)
                         else:
                             not_found.append(title)
-                        st.progress((i + 1) / len(movie_titles))
+                        progress_bar.progress((i + 1) / len(movie_titles))
                 if new_movies:
                     df_new = pd.DataFrame(new_movies)
                     df_new["Date Added"] = datetime.now().strftime("%Y-%m-%d")
@@ -87,6 +88,11 @@ with tabs[0]:
                         st.error(f"Not found: {', '.join(not_found)}")
                 else:
                     st.info("No new movies were added.")
+
+        if st.button("Clear All Data"):
+            if os.path.exists(BACKEND_PATH):
+                os.remove(BACKEND_PATH)
+                st.success("All movie data cleared.")
 
         df = load_data()
         st.subheader("Your Movie Collection")
