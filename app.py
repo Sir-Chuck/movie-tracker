@@ -38,10 +38,10 @@ st.markdown('<div class="title">MovieGraph</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle"><span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
 
 REQUIRED_COLUMNS = [
-    "Title", "Year", "Genre", "Director", "Cast",
+    "Title", "Rank", "Year", "Genre", "Director", "Cast",
     "IMDB Rating", "Rotten Tomatoes", "Metacritic Score", "Awards",
     "Runtime", "Language", "Overview",
-    "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added", "Rank"
+    "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added"
 ]
 
 def load_data():
@@ -60,9 +60,11 @@ def data_management_tab():
     if st.button("Add Movies"):
         titles_list = [t.strip() for t in titles.split("\n") if t.strip()]
         added, skipped, not_found = [], [], []
+        progress = st.progress(0)
 
         with st.spinner("Fetching movie data..."):
-            for title in titles_list:
+            for i, title in enumerate(titles_list):
+                progress.progress((i + 1) / len(titles_list))
                 if title in df["Title"].values:
                     skipped.append(title)
                     continue
@@ -106,7 +108,6 @@ def analytics_tab():
 
     st.subheader("Interactive Analytics")
 
-    # Genre bar chart
     st.markdown("### 🎬 Movie Count by Genre")
     genre_counts = df["Genre"].str.split(", ").explode().value_counts().reset_index()
     genre_counts.columns = ["Genre", "Count"]
@@ -115,7 +116,6 @@ def analytics_tab():
     )
     st.altair_chart(bar_genre, use_container_width=True)
 
-    # Ratings comparison
     st.markdown("### 📊 IMDB vs Metacritic vs Rotten Tomatoes")
     scatter = alt.Chart(df.dropna(subset=["IMDB Rating", "Metacritic Score", "Rotten Percent"])).mark_circle(size=80).encode(
         x="IMDB Rating",
@@ -126,7 +126,6 @@ def analytics_tab():
     ).interactive()
     st.altair_chart(scatter, use_container_width=True)
 
-    # Ratings over time
     st.markdown("### 📈 Average Ratings by Year")
     ratings_by_year = df.groupby("Year")[["IMDB Rating", "Metacritic Score"]].mean().reset_index()
     line = alt.Chart(ratings_by_year).transform_fold(
@@ -138,7 +137,6 @@ def analytics_tab():
     )
     st.altair_chart(line, use_container_width=True)
 
-    # Bubble chart
     st.markdown("### 💰 Box Office vs Budget (Bubble Size = IMDB Rating)")
     bubble = alt.Chart(df.dropna(subset=["Box Office (Adj)", "Budget (Adj)", "IMDB Rating"])).mark_circle().encode(
         x="Budget (Adj)",
@@ -151,15 +149,23 @@ def analytics_tab():
 
 def top_100_tab():
     st.subheader("📥 Upload Your Top 100 Ranked Movies")
-    uploaded_file = st.file_uploader("Upload CSV file with columns: Title, Rank", type="csv")
+    uploaded_file = st.file_uploader("Upload CSV file with columns: Title (or Movie), Rank", type="csv")
 
     if uploaded_file:
-        rank_df = pd.read_csv(uploaded_file)
+        with st.spinner("Loading CSV file..."):
+            rank_df = pd.read_csv(uploaded_file)
+
+        rank_df.columns = rank_df.columns.str.strip().str.lower()
+        title_col = "title" if "title" in rank_df.columns else "movie"
+        rank_df = rank_df.rename(columns={title_col: "Title", "rank": "Rank"})
         rank_df = rank_df.dropna(subset=["Title", "Rank"])
         collection = load_data()
 
         added_movies = []
-        for _, row in rank_df.iterrows():
+        progress = st.progress(0)
+
+        for i, (_, row) in enumerate(rank_df.iterrows()):
+            progress.progress((i + 1) / len(rank_df))
             title = row["Title"].strip()
             if title in collection["Title"].values:
                 continue
@@ -178,7 +184,7 @@ def top_100_tab():
         st.markdown("### 🏆 Top 100 Ranked List")
         full = collection[collection["Title"].isin(rank_df["Title"])].copy()
         full["Rank"] = pd.to_numeric(full["Rank"], errors="coerce")
-        st.dataframe(full.sort_values("Rank"), use_container_width=True)
+        st.dataframe(full.sort_values("Rank")[["Rank", "Title"] + [col for col in REQUIRED_COLUMNS if col not in ["Title", "Rank"]]], use_container_width=True)
 
 # Tabs
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
