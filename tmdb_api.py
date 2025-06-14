@@ -20,7 +20,7 @@ def get_movie_data(title):
     movie = search_resp.json()["results"][0]
     movie_id = movie["id"]
 
-    # Get more details
+    # Get more details and credits
     details_resp = requests.get(TMDB_MOVIE_URL.format(movie_id), params={"api_key": TMDB_API_KEY})
     credits_resp = requests.get(TMDB_CREDITS_URL.format(movie_id), params={"api_key": TMDB_API_KEY})
 
@@ -33,9 +33,16 @@ def get_movie_data(title):
     # Extract director
     director = next((c["name"] for c in credits["crew"] if c["job"] == "Director"), "N/A")
 
+    # Extract top 3 cast members
+    cast = [member["name"] for member in credits.get("cast", [])[:3]]
+    cast_str = ", ".join(cast)
+
     return {
         "Title": movie["title"],
         "Release Year": movie.get("release_date", "")[:4],
         "Genre": ", ".join([g["name"] for g in details.get("genres", [])]),
-        "Director": director
+        "Director": director,
+        "Cast": cast_str,
+        "Runtime": details.get("runtime", "N/A"),
+        "TMDB Rating": details.get("vote_average", "N/A")
     }
