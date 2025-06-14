@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-from tmdb_api import search_movie, get_movie_details
+from tmdb_api import search_movie, get_movie_details, get_best_match
 
-# Load existing data
+# Load existing movie list
 try:
     df = pd.read_csv("final_movie_data.csv")
 except FileNotFoundError:
@@ -11,14 +11,13 @@ except FileNotFoundError:
 
 st.title("🎬 My Movie Tracker")
 
-# Display the movie table
 st.subheader("📋 Tracked Movies")
 if df.empty:
     st.info("No movies tracked yet.")
 else:
     st.dataframe(df, use_container_width=True)
 
-# Section to add multiple movies
+# Section for adding new movies
 st.subheader("➕ Add Multiple Movies")
 
 movie_list_input = st.text_area(
@@ -33,21 +32,21 @@ if st.button("Add Movies"):
         titles = [t.strip() for t in movie_list_input.replace("\n", ",").split(",") if t.strip()]
         existing_titles = df["title_input"].str.lower().tolist() if "title_input" in df else []
 
-        added = []
-        duplicates = []
-        not_found = []
+        added, duplicates, not_found = [], [], []
 
         for title in titles:
-            title_key = title.lower()
+            title_clean = title.strip()
+            title_key = title_clean.lower()
 
             if title_key in existing_titles:
-                duplicates.append(title)
+                duplicates.append(title_clean)
                 continue
 
-            results = search_movie(title)
-            if results:
-                selected = results[0]
-                details = get_movie_details(selected["id"])
+            results = search_movie(title_clean)
+            match = get_best_match(title_clean, results)
+
+            if match:
+                details = get_movie_details(match["id"])
 
                 new_movie = {
                     "title": details.get("title", ""),
@@ -74,23 +73,22 @@ if st.button("Add Movies"):
 
                 new_row = pd.DataFrame([new_movie])
                 df = pd.concat([df, new_row], ignore_index=True)
-                added.append(title)
+                added.append(title_clean)
                 existing_titles.append(title_key)
             else:
-                not_found.append(title)
+                not_found.append(title_clean)
 
-        # Save updated data
+        # Save and summarize
         df.to_csv("final_movie_data.csv", index=False)
 
-        # Results summary
         if added:
             st.success(f"✅ Added {len(added)}: {', '.join(added)}")
         if duplicates:
-            st.info(f"🔁 Already tracked (not added): {', '.join(duplicates)}")
+            st.info(f"🔁 Already tracked: {', '.join(duplicates)}")
         if not_found:
-            st.error(f"❌ Not found via API: {', '.join(not_found)}")
+            st.error(f"❌ Not found: {', '.join(not_found)}")
 
-# Optional download button
+# Download option
 if not df.empty:
     st.download_button(
         "⬇️ Download Updated CSV",
