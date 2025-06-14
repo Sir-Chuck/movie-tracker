@@ -50,21 +50,22 @@ REQUIRED_COLUMNS = [
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
 with tabs[0]:
-    
+
     from tmdb_api import fetch_movie_data
+
+    def load_data():
+        if os.path.exists(BACKEND_PATH):
+            return pd.read_csv(BACKEND_PATH)
+        return pd.DataFrame(columns=REQUIRED_COLUMNS)
 
     def data_management_tab():
         st.subheader("Add Movies to Your Collection")
         title_input = st.text_area("Enter movie titles (one per line):")
         if st.button("Add Movies"):
             if title_input.strip():
-                movie_titles = [title.strip() for title in title_input.strip().split("\n") if title.strip()]
-                existing_def load_data():
-        if os.path.exists(BACKEND_PATH):
-            return pd.read_csv(BACKEND_PATH)
-        return pd.DataFrame(columns=REQUIRED_COLUMNS)
-
-    df = load_data()
+                movie_titles = [title.strip() for title in title_input.strip().split("
+") if title.strip()]
+                existing_df = load_data()
                 with st.spinner("Fetching movie data..."):
                     new_movies, skipped, not_found = [], [], []
                     for i, title in enumerate(movie_titles):
