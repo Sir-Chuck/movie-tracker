@@ -44,9 +44,14 @@ if st.button("Add to Tracker"):
 
     df.to_csv(DATA_PATH, index=False)
 
-    st.success(f"✅ Added: {', '.join(added)}") if added else None
-    st.warning(f"⚠️ Already Tracked: {', '.join(skipped)}") if skipped else None
-    st.error(f"❌ Not Found: {', '.join(not_found)}") if not_found else None
+if added:
+    st.success(f"✅ Added: {', '.join(added)}")
+
+if skipped:
+    st.warning(f"⚠️ Already Tracked: {', '.join(skipped)}")
+
+if not_found:
+    st.error(f"❌ Not Found: {', '.join(not_found)}")
 
 # Display tracked movies
 st.header("🎞️ Tracked Movies")
