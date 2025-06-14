@@ -58,8 +58,7 @@ with tabs[0]:
         title_input = st.text_area("Enter movie titles (one per line):")
         if st.button("Add Movies"):
             if title_input.strip():
-                movie_titles = [title.strip() for title in title_input.strip().split("
-") if title.strip()]  # fixed unterminated string
+                movie_titles = [title.strip() for title in title_input.strip().split("") if title.strip()]  # fixed unterminated string
                 existing_df = load_data()
                 with st.spinner("Fetching movie data..."):
                     new_movies, skipped, not_found = [], [], []
