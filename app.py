@@ -23,25 +23,6 @@ df = load_data()
 # Tabs
 tab = st.sidebar.radio("Navigation", ["Data Management", "Analytics", "Top 100"])
 
-# Filters (only on Analytics tab)
-if tab == "Analytics":
-    st.sidebar.markdown("## Filters")
-    min_year, max_year = st.sidebar.slider("Year", 1950, datetime.now().year, (2000, datetime.now().year))
-    selected_genres = st.sidebar.multiselect("Genre", options=sorted(df["Genre"].dropna().unique()))
-    selected_directors = st.sidebar.multiselect("Director", options=sorted(df["Director"].dropna().unique()))
-
-    filtered_df = df[
-        (df["Year"].astype(str).str[:4].astype(int).between(min_year, max_year))
-    ]
-
-    if selected_genres:
-        filtered_df = filtered_df[filtered_df["Genre"].isin(selected_genres)]
-
-    if selected_directors:
-        filtered_df = filtered_df[filtered_df["Director"].isin(selected_directors)]
-else:
-    filtered_df = df.copy()
-
 # Data Management Tab
 if tab == "Data Management":
     st.title("🎬 MovieGraph: Data Management")
@@ -70,10 +51,9 @@ if tab == "Data Management":
 # Analytics Tab
 elif tab == "Analytics":
     st.title("📊 MovieGraph: Analytics")
-    render_analytics_tab(filtered_df)
+    render_analytics_tab(df, palette=["#4E79A7", "#F28E2B", "#E15759"])
 
 # Top 100 Tab
 elif tab == "Top 100":
     st.title("🏆 MovieGraph: Top 100")
     st.write("Coming soon...")
-
