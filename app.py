@@ -32,7 +32,8 @@ if st.button("Add Movies"):
         titles = [t.strip() for t in movie_list_input.replace("\n", ",").split(",") if t.strip()]
         existing_titles = df["title_input"].str.lower().tolist() if "title_input" in df else []
 
-        added, duplicates, not_found = [], [], []
+        added, duplicates, no_match = [], [], []
+        pending_matches = []
 
         for title in titles:
             title_clean = title.strip()
@@ -43,52 +44,64 @@ if st.button("Add Movies"):
                 continue
 
             results = search_movie(title_clean)
-            match = get_best_match(title_clean, results)
+            match, score = get_best_match(title_clean, results)
 
-            if match:
-                details = get_movie_details(match["id"])
-
-                new_movie = {
-                    "title": details.get("title", ""),
-                    "year": details.get("release_date", "")[:4],
-                    "runningTimeInMinutes": details.get("runtime", None),
-                    "rating": details.get("vote_average", None),
-                    "ratingCount": details.get("vote_count", None),
-                    "metaScore": None,
-                    "reviewCount": None,
-                    "userScore": None,
-                    "userRatingCount": None,
-                    "genre_list": [genre["name"] for genre in details.get("genres", [])],
-                    "budget": details.get("budget", None),
-                    "world_wide_gross": details.get("revenue", None),
-                    "title_input": title_key,
-                    "movie_id": details.get("id", ""),
-                    "inf_index": None,
-                    "adjusted_budget": None,
-                    "adjusted_box_office": None,
-                    "net_diff": None,
-                    "final_score": None,
-                    "date_added": datetime.today().strftime('%Y-%m-%d')
-                }
-
-                new_row = pd.DataFrame([new_movie])
-                df = pd.concat([df, new_row], ignore_index=True)
-                added.append(title_clean)
-                existing_titles.append(title_key)
+            if match and score > 45:
+                pending_matches.append({
+                    "Input Title": title_clean,
+                    "Matched Title": match["title"],
+                    "Release Year": match.get("release_date", "")[:4],
+                    "Score": round(score, 1),
+                    "TMDB ID": match["id"],
+                    "Title Key": title_key
+                })
             else:
-                not_found.append(title_clean)
+                no_match.append(title_clean)
 
-        # Save and summarize
-        df.to_csv("final_movie_data.csv", index=False)
+        # Show preview of fuzzy matches for confirmation
+        if pending_matches:
+            st.subheader("🔍 Review Fuzzy Matches")
+            preview_df = pd.DataFrame(pending_matches)
+            st.dataframe(preview_df)
 
-        if added:
-            st.success(f"✅ Added {len(added)}: {', '.join(added)}")
+            if st.button("✅ Confirm & Add These Movies"):
+                for row in pending_matches:
+                    details = get_movie_details(row["TMDB ID"])
+                    new_movie = {
+                        "title": details.get("title", ""),
+                        "year": details.get("release_date", "")[:4],
+                        "runningTimeInMinutes": details.get("runtime", None),
+                        "rating": details.get("vote_average", None),
+                        "ratingCount": details.get("vote_count", None),
+                        "metaScore": None,
+                        "reviewCount": None,
+                        "userScore": None,
+                        "userRatingCount": None,
+                        "genre_list": [genre["name"] for genre in details.get("genres", [])],
+                        "budget": details.get("budget", None),
+                        "world_wide_gross": details.get("revenue", None),
+                        "title_input": row["Title Key"],
+                        "movie_id": row["TMDB ID"],
+                        "inf_index": None,
+                        "adjusted_budget": None,
+                        "adjusted_box_office": None,
+                        "net_diff": None,
+                        "final_score": None,
+                        "date_added": datetime.today().strftime('%Y-%m-%d')
+                    }
+                    new_row = pd.DataFrame([new_movie])
+                    df = pd.concat([df, new_row], ignore_index=True)
+                    added.append(row["Input Title"])
+
+                df.to_csv("final_movie_data.csv", index=False)
+                st.success(f"✅ Added {len(added)} movies")
+
         if duplicates:
             st.info(f"🔁 Already tracked: {', '.join(duplicates)}")
-        if not_found:
-            st.error(f"❌ Not found: {', '.join(not_found)}")
+        if no_match:
+            st.error(f"❌ No match found: {', '.join(no_match)}")
 
-# Download option
+# Download button for updated data
 if not df.empty:
     st.download_button(
         "⬇️ Download Updated CSV",
