@@ -4,7 +4,6 @@ from datetime import datetime
 from tmdb_api import fetch_movie_data
 import altair as alt
 import os
-from analytics_tab import render_analytics_tab
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
 
@@ -103,6 +102,12 @@ with tabs[0]:
 
     df = load_data()
     st.subheader("Your Movie Collection")
+    if st.button("Clear All Data"):
+        if os.path.exists(BACKEND_PATH):
+            os.remove(BACKEND_PATH)
+            st.success("All movie data cleared.")
+        st.stop()
+
     if df.empty:
         st.info("No movies in your collection yet.")
     else:
@@ -116,6 +121,7 @@ with tabs[1]:
     if df.empty:
         st.info("Add movies to view analytics.")
     else:
+        from analytics_tab import render_analytics_tab
         render_analytics_tab(df, PALETTE)
 
 # --- Top 100 Tab ---
