@@ -7,7 +7,9 @@ import os
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
 
-# --- Branding ---
+# --- Styling ---
+PALETTE = ['#f27802', '#2e0854', '#7786c8', '#708090', '#b02711']
+
 st.markdown("""
 <style>
     html, body, [class*="css"]  {
@@ -36,7 +38,7 @@ st.markdown("""
 st.markdown('<div class="title">MovieGraph</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle"><span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
 
-# --- Paths & Columns ---
+# --- Setup ---
 BACKEND_PATH = "data/backend_movie_data.csv"
 REQUIRED_COLUMNS = [
     "Title", "Rank", "Year", "Genre", "Director", "Cast",
@@ -45,10 +47,16 @@ REQUIRED_COLUMNS = [
     "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added"
 ]
 
-# --- Utility Functions ---
 def load_data():
     if os.path.exists(BACKEND_PATH):
-        return pd.read_csv(BACKEND_PATH)
+        df = pd.read_csv(BACKEND_PATH)
+        df["Year"] = pd.to_numeric(df["Year"], errors="coerce").fillna(0).astype(int)
+        df["Budget"] = pd.to_numeric(df["Budget"], errors="coerce")
+        df["Box Office"] = pd.to_numeric(df["Box Office"], errors="coerce")
+        df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
+        df["Rotten Tomatoes"] = pd.to_numeric(df["Rotten Tomatoes"], errors="coerce")
+        df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
+        return df
     return pd.DataFrame(columns=REQUIRED_COLUMNS)
 
 def validate_movie_data(data):
@@ -57,23 +65,20 @@ def validate_movie_data(data):
             data[col] = None
     return {k: data.get(k) for k in REQUIRED_COLUMNS}
 
-# --- UI Tabs ---
+# --- Tabs ---
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
-# --- Data Management Tab ---
+# --- Data Management ---
 with tabs[0]:
     st.subheader("Add Movies to Your Collection")
     title_input = st.text_area("Enter movie titles (one per line):")
-
     if st.button("Add Movies"):
         if title_input.strip():
             movie_titles = [title.strip() for title in title_input.strip().split("\n") if title.strip()]
             existing_df = load_data()
-
             with st.spinner("Fetching movie data..."):
                 new_movies, skipped, not_found = [], [], []
                 progress_bar = st.progress(0)
-
                 for i, title in enumerate(movie_titles):
                     if title in existing_df["Title"].values:
                         skipped.append(title)
@@ -85,7 +90,6 @@ with tabs[0]:
                     else:
                         not_found.append(title)
                     progress_bar.progress((i + 1) / len(movie_titles))
-
                 if new_movies:
                     df_new = pd.DataFrame(new_movies)
                     df_new["Date Added"] = datetime.now().strftime("%Y-%m-%d")
@@ -93,7 +97,7 @@ with tabs[0]:
                     updated_df.to_csv(BACKEND_PATH, index=False)
                     st.success(f"✅ Added: {len(new_movies)} movies")
                     if skipped:
-                        st.warning(f"⚠️ Skipped (already in collection): {', '.join(skipped)}")
+                        st.warning(f"⚠️ Skipped: {', '.join(skipped)}")
                     if not_found:
                         st.error(f"❌ Not found: {', '.join(not_found)}")
                 else:
@@ -109,49 +113,47 @@ with tabs[0]:
 
 # --- Analytics Tab ---
 with tabs[1]:
-    def analytics_tab():
-        st.subheader("Analytics")
-        df = load_data()
+    df = load_data()
+    st.subheader("Analytics")
 
-        if df.empty:
-            st.info("Add some movies to see analytics.")
-            return
+    if df.empty:
+        st.info("Add movies to view analytics.")
+    else:
+        # --- Sidebar Filters ---
+        with st.sidebar:
+            st.markdown("### Filters")
+            years = df["Year"].dropna()
+            year_range = st.slider("Year", int(years.min()), int(years.max()), (int(years.min()), int(years.max())))
+            genres = sorted(set(g.strip() for sublist in df["Genre"].dropna().str.split(",") for g in sublist))
+            selected_genres = st.multiselect("Genre", genres, default=genres)
+            budget_range = st.slider("Budget ($)", 0, int(df["Budget"].max()), (0, int(df["Budget"].max())))
+            box_range = st.slider("Box Office ($)", 0, int(df["Box Office"].max()), (0, int(df["Box Office"].max())))
+            directors = sorted(df["Director"].dropna().unique())
+            selected_director = st.selectbox("Director", ["All"] + directors)
+            actors = sorted(set(actor.strip() for sublist in df["Cast"].dropna().str.split(",") for actor in sublist))
+            selected_actor = st.selectbox("Actor", ["All"] + actors)
 
-        # Genre Count Chart
-        if "Genre" in df.columns and df["Genre"].notna().any():
-            genre_counts = (
-                df["Genre"]
-                .dropna()
-                .str.split(",")
-                .explode()
-                .str.strip()
-                .value_counts()
-                .reset_index()
-            )
-            genre_counts.columns = ["Genre", "Count"]
-            st.altair_chart(
-                alt.Chart(genre_counts).mark_bar().encode(
-                    x=alt.X("Genre", sort="-y"),
-                    y="Count"
-                ).properties(title="Movies by Genre", width=600),
-                use_container_width=True
-            )
+        # --- Apply Filters ---
+        def movie_has_selected_genre(genre_string):
+            if pd.isna(genre_string):
+                return False
+            movie_genres = [g.strip() for g in genre_string.split(",")]
+            return any(g in selected_genres for g in movie_genres)
 
-        # IMDB Rating Distribution
-        if "IMDB Rating" in df.columns and df["IMDB Rating"].notna().any():
-            try:
-                df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
-                st.altair_chart(
-                    alt.Chart(df.dropna(subset=["IMDB Rating"])).mark_bar().encode(
-                        x=alt.X("IMDB Rating:Q", bin=True),
-                        y='count()'
-                    ).properties(title="Distribution of IMDB Ratings", width=600),
-                    use_container_width=True
-                )
-            except Exception as e:
-                st.warning("Couldn't render IMDB rating chart due to data issues.")
+        filtered_df = df[
+            (df["Year"].between(*year_range)) &
+            (df["Budget"].between(*budget_range)) &
+            (df["Box Office"].between(*box_range)) &
+            df["Genre"].apply(movie_has_selected_genre)
+        ]
+        if selected_director != "All":
+            filtered_df = filtered_df[filtered_df["Director"] == selected_director]
+        if selected_actor != "All":
+            filtered_df = filtered_df[filtered_df["Cast"].str.contains(selected_actor, na=False)]
 
-    analytics_tab()
+        # --- Visualizations ---
+        from analytics_tab import render_analytics_tab
+        render_analytics_tab(filtered_df, palette=PALETTE)
 
 # --- Top 100 Tab ---
 with tabs[2]:
