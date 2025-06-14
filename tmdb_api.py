@@ -28,7 +28,6 @@ def get_omdb_data(title, year=None):
             params["y"] = year
 
         response = requests.get(OMDB_BASE_URL, params=params).json()
-        st.write("🎯 OMDb response:", response)  # Debug line
 
         metascore = ""
         rt_score = ""
