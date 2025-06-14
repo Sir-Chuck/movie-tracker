@@ -85,10 +85,10 @@ def top_100_tab():
 
 # Display all tabs
 
-with st.tabs(["Data Management", "Analytics", "Top 100"]) as (tab1, tab2, tab3):
-    with tab1:
-        data_management_tab()
-    with tab2:
-        analytics_tab()
-    with tab3:
-        top_100_tab()
+tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
+with tabs[0]:
+    data_management_tab()
+with tabs[1]:
+    analytics_tab()
+with tabs[2]:
+    top_100_tab()
