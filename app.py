@@ -7,7 +7,6 @@ import os
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
 
-# --- Styling ---
 PALETTE = ['#f27802', '#2e0854', '#7786c8', '#708090', '#b02711']
 
 st.markdown("""
@@ -38,7 +37,6 @@ st.markdown("""
 st.markdown('<div class="title">MovieGraph</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle"><span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
 
-# --- Setup ---
 BACKEND_PATH = "data/backend_movie_data.csv"
 REQUIRED_COLUMNS = [
     "Title", "Rank", "Year", "Genre", "Director", "Cast",
@@ -51,11 +49,8 @@ def load_data():
     if os.path.exists(BACKEND_PATH):
         df = pd.read_csv(BACKEND_PATH)
         df["Year"] = pd.to_numeric(df["Year"], errors="coerce").fillna(0).astype(int)
-        df["Budget"] = pd.to_numeric(df["Budget"], errors="coerce")
-        df["Box Office"] = pd.to_numeric(df["Box Office"], errors="coerce")
-        df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
-        df["Rotten Tomatoes"] = pd.to_numeric(df["Rotten Tomatoes"], errors="coerce")
-        df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
+        for col in ["Budget", "Box Office", "IMDB Rating", "Rotten Tomatoes", "Metacritic Score"]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
         return df
     return pd.DataFrame(columns=REQUIRED_COLUMNS)
 
@@ -65,10 +60,8 @@ def validate_movie_data(data):
             data[col] = None
     return {k: data.get(k) for k in REQUIRED_COLUMNS}
 
-# --- Tabs ---
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
-# --- Data Management ---
 with tabs[0]:
     st.subheader("Add Movies to Your Collection")
     title_input = st.text_area("Enter movie titles (one per line):")
@@ -111,7 +104,6 @@ with tabs[0]:
         st.write(f"Total Movies: {len(df)}")
         st.dataframe(df.sort_values("Date Added", ascending=False), use_container_width=True)
 
-# --- Analytics Tab ---
 with tabs[1]:
     df = load_data()
     st.subheader("Analytics")
@@ -119,7 +111,6 @@ with tabs[1]:
     if df.empty:
         st.info("Add movies to view analytics.")
     else:
-        # --- Sidebar Filters ---
         with st.sidebar:
             st.markdown("### Filters")
             years = df["Year"].dropna()
@@ -133,7 +124,6 @@ with tabs[1]:
             actors = sorted(set(actor.strip() for sublist in df["Cast"].dropna().str.split(",") for actor in sublist))
             selected_actor = st.selectbox("Actor", ["All"] + actors)
 
-        # --- Apply Filters ---
         def movie_has_selected_genre(genre_string):
             if pd.isna(genre_string):
                 return False
@@ -151,11 +141,16 @@ with tabs[1]:
         if selected_actor != "All":
             filtered_df = filtered_df[filtered_df["Cast"].str.contains(selected_actor, na=False)]
 
-        # --- Visualizations ---
-        from analytics_tab import render_analytics_tab
-        render_analytics_tab(filtered_df, palette=PALETTE)
+        # Example: Ratings Distribution Chart
+        rating_choice = st.selectbox("Rating Type", ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
+        st.altair_chart(
+            alt.Chart(filtered_df.dropna(subset=[rating_choice])).mark_bar(color=PALETTE[0]).encode(
+                x=alt.X(f"{rating_choice}:Q", bin=True),
+                y='count()'
+            ).properties(title=f"Distribution of {rating_choice}", width=600),
+            use_container_width=True
+        )
 
-# --- Top 100 Tab ---
 with tabs[2]:
     def top_100_tab():
         st.subheader("Top 100")
