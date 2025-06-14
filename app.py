@@ -59,30 +59,27 @@ def save_data(df):
     st.session_state.movie_data = df
 
 def data_management_tab():
-    st.subheader("Your Movie Collection")
-    df = load_data()
-    st.write(f"Total Movies: {len(df)}")
-    st.dataframe(df[REQUIRED_COLUMNS], use_container_width=True)
-
     st.subheader("Add Movies")
+    df = load_data()
     movie_input = st.text_area("Enter movie titles (one per line):")
     if st.button("Add Movies"):
         new_titles = [m.strip() for m in movie_input.split("\n") if m.strip()]
         existing_titles = df["Title"].str.lower().tolist()
         added, skipped, not_found = [], [], []
 
-        with st.spinner("Fetching movie data..."):
-            for title in new_titles:
-                if title.lower() in existing_titles:
-                    skipped.append(title)
-                    continue
-                data = fetch_movie_data(title)
-                if data:
-                    data["Date Added"] = datetime.now().strftime("%Y-%m-%d")
-                    df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
-                    added.append(title)
-                else:
-                    not_found.append(title)
+        progress = st.progress(0)
+        for i, title in enumerate(new_titles):
+            progress.progress((i + 1) / len(new_titles))
+            if title.lower() in existing_titles:
+                skipped.append(title)
+                continue
+            data = fetch_movie_data(title)
+            if data:
+                data["Date Added"] = datetime.now().strftime("%Y-%m-%d")
+                df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
+                added.append(title)
+            else:
+                not_found.append(title)
 
         save_data(df)
         st.success(f"✅ Added: {len(added)}, Skipped: {len(skipped)}, Not Found: {len(not_found)}")
@@ -96,6 +93,13 @@ def data_management_tab():
         save_data(st.session_state.movie_data)
         st.success("All movie data cleared.")
 
+    st.subheader("Your Movie Collection")
+    df = load_data()
+    st.write(f"Total Movies: {len(df)}")
+    st.dataframe(df[REQUIRED_COLUMNS], use_container_width=True)
+
+# other functions stay the same...
+
 def analytics_tab():
     st.subheader("Analytics Dashboard")
     df = load_data()
@@ -103,7 +107,6 @@ def analytics_tab():
         st.info("No data to analyze. Add movies first.")
         return
 
-    # Clean numeric columns
     df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
     df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
     df["Rotten Percent"] = pd.to_numeric(df["Rotten Tomatoes"].str.replace("%", "", regex=False), errors="coerce")
@@ -122,6 +125,8 @@ def analytics_tab():
         tooltip=['Title', 'Director', 'Year']
     ).interactive()
     st.altair_chart(chart, use_container_width=True)
+
+# ...top_100_tab remains unchanged...
 
 def top_100_tab():
     st.subheader("Top 100 Movies (Upload and Rank)")
