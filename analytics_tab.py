@@ -9,11 +9,13 @@ def analytics_tab(df):
         st.warning("No data to analyze. Please add movies first.")
         return
 
+    # Ensure columns are strings before using .str
+    df["Box Office"] = pd.to_numeric(df["Box Office"].astype(str).str.replace("[$,]", "", regex=True), errors="coerce")
+    df["Budget"] = pd.to_numeric(df["Budget"].astype(str).str.replace("[$,]", "", regex=True), errors="coerce")
     df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
     df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
-    df["Box Office"] = pd.to_numeric(df["Box Office"].str.replace("[$,]", "", regex=True), errors="coerce")
-    df["Budget"] = pd.to_numeric(df["Budget"].str.replace("[$,]", "", regex=True), errors="coerce")
-    df["Rotten Percent"] = pd.to_numeric(df["Rotten Tomatoes"].str.replace("%", ""), errors="coerce")
+    df["Rotten Percent"] = pd.to_numeric(df["Rotten Tomatoes"].astype(str).str.replace("%", ""), errors="coerce")
+    df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
 
     # Filters – only visible on Analytics
     st.markdown("### Filters")
@@ -104,8 +106,8 @@ def analytics_tab(df):
     bb = filtered_df.dropna(subset=["Box Office", "Budget", "IMDB Rating", "Rotten Percent"])
     st.altair_chart(
         alt.Chart(bb).mark_circle().encode(
-            x="Budget:Q",
-            y="Box Office:Q",
+            x=alt.X("Budget:Q", axis=alt.Axis(format="$,.0f")),
+            y=alt.Y("Box Office:Q", axis=alt.Axis(format="$,.0f")),
             size="Rotten Percent:Q",
             color="IMDB Rating:Q",
             tooltip=["Title", "Budget", "Box Office", "IMDB Rating", "Rotten Percent"]
