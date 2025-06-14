@@ -21,30 +21,37 @@ def adjust_for_inflation(amount, year):
     except:
         return ""
 
-def get_metacritic_score(title, year=None):
+def get_omdb_data(title, year=None):
     try:
         params = {"t": title, "apikey": OMDB_API_KEY}
         if year:
             params["y"] = year
 
         response = requests.get(OMDB_BASE_URL, params=params).json()
-        st.write("🎯 OMDb response:", response)  # Debug
+        st.write("🎯 OMDb response:", response)  # Debug line
 
-        # Try Ratings first (more reliable)
+        metascore = ""
+        rt_score = ""
+        imdb_rating = response.get("imdbRating", "")
+        awards = response.get("Awards", "")
+
         for rating in response.get("Ratings", []):
             if rating["Source"] == "Metacritic":
-                return rating["Value"].split("/")[0]  # Returns '74' from '74/100'
+                metascore = rating["Value"].split("/")[0]
+            elif rating["Source"] == "Rotten Tomatoes":
+                rt_score = rating["Value"]
 
-        # Fallback to Metascore field
-        score = response.get("Metascore", "")
-        if score and score != "N/A":
-            return score
+        return {
+            "Metacritic Score": metascore,
+            "Rotten Tomatoes": rt_score,
+            "IMDB Rating": imdb_rating,
+            "Awards": awards
+        }
     except Exception as e:
         st.write("❌ OMDb error:", e)
-    return ""
+        return {}
 
 def fetch_movie_data(title):
-    """Fetch movie data from TMDb and Metacritic from OMDb."""
     search_url = f"{TMDB_BASE_URL}/search/movie"
     search_resp = requests.get(search_url, params={
         "api_key": TMDB_API_KEY,
@@ -76,7 +83,7 @@ def fetch_movie_data(title):
     adj_box_office = adjust_for_inflation(box_office, year)
     adj_budget = adjust_for_inflation(budget, year)
 
-    metacritic = get_metacritic_score(title, year)
+    omdb = get_omdb_data(title, year)
 
     return {
         "Title": detail.get("title"),
@@ -84,13 +91,15 @@ def fetch_movie_data(title):
         "Genre": ", ".join([g["name"] for g in detail.get("genres", [])]),
         "Director": director,
         "Cast": cast,
-        "IMDB Rating": detail.get("vote_average"),
+        "IMDB Rating": omdb.get("IMDB Rating", detail.get("vote_average")),
+        "Rotten Tomatoes": omdb.get("Rotten Tomatoes", ""),
+        "Metacritic Score": omdb.get("Metacritic Score", ""),
+        "Awards": omdb.get("Awards", ""),
         "Runtime": f"{detail.get('runtime')} min" if detail.get("runtime") else "",
         "Language": detail.get("original_language", "").upper(),
         "Overview": detail.get("overview", ""),
         "Box Office": box_office,
         "Box Office (Adj)": adj_box_office,
         "Budget": budget,
-        "Budget (Adj)": adj_budget,
-        "Metacritic Score": metacritic
+        "Budget (Adj)": adj_budget
     }
