@@ -46,14 +46,20 @@ REQUIRED_COLUMNS = [
     "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added"
 ]
 
-# Display all tabs
-selected_tab = st.selectbox("Navigate", ["Data Management", "Analytics", "Top 100"])
+# Display all tabs using Streamlit tabs
+tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
-if selected_tab == "Analytics":
-    st.sidebar.header("Filter Options")
+with tabs[0]:
+    from data_management_tab import data_management_tab
+    data_management_tab()
 
-# ... retain all other logic ... (unchanged)
+with tabs[1]:
+    from analytics_tab import analytics_tab
+    analytics_tab()
 
-# Add these lines to color scale definition in analytics plots where appropriate:
-# color=alt.Color("Avg_Meta", scale=alt.Scale(scheme='category10', range=['#f27802', '#2e0854', '#7786c8', '#708090', '#b02711']))
-# Apply similar scale/range definitions to other Altair charts to use consistent colors
+with tabs[2]:
+    from top_100_tab import top_100_tab
+    top_100_tab()
+
+# Note: Make sure the sidebar filter logic for Analytics is inside `analytics_tab()`
+# and does not appear outside of tab logic.
