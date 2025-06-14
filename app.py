@@ -3,7 +3,7 @@ import pandas as pd
 from tmdb_api import search_movie, get_movie_details
 
 # Load existing data
-df = pd.read_csv("data/final_movie_data.csv")
+df = pd.read_csv("final_movie_data.csv")
 
 st.title("🎬 My Movie Tracker")
 
