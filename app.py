@@ -1,3 +1,4 @@
+# app.py
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -6,6 +7,8 @@ import matplotlib.pyplot as plt
 import altair as alt
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
+
+# Branding styles
 st.markdown("""
 <style>
     html, body, [class*="css"]  {
@@ -36,9 +39,9 @@ st.markdown('<div class="subtitle"><span>C</span><span>H</span><span>U</span><sp
 
 REQUIRED_COLUMNS = [
     "Title", "Year", "Genre", "Director", "Cast",
-    "IMDB Rating", "Metacritic Score",
+    "IMDB Rating", "Rotten Tomatoes", "Metacritic Score", "Awards",
     "Runtime", "Language", "Overview",
-    "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added"
+    "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added", "Rank"
 ]
 
 def load_data():
@@ -51,8 +54,8 @@ def save_data(df):
 
 def data_management_tab():
     df = load_data()
-
     st.subheader("Add Movies to Your Collection")
+
     titles = st.text_area("Enter movie titles (one per line):")
     if st.button("Add Movies"):
         titles_list = [t.strip() for t in titles.split("\n") if t.strip()]
@@ -66,6 +69,7 @@ def data_management_tab():
                 movie = fetch_movie_data(title)
                 if movie:
                     movie["Date Added"] = datetime.now().strftime("%Y-%m-%d")
+                    movie["Rank"] = ""
                     df = pd.concat([df, pd.DataFrame([movie])], ignore_index=True)
                     added.append(title)
                 else:
@@ -98,39 +102,90 @@ def analytics_tab():
     df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
     df["Box Office (Adj)"] = pd.to_numeric(df["Box Office (Adj)"], errors="coerce")
     df["Budget (Adj)"] = pd.to_numeric(df["Budget (Adj)"], errors="coerce")
+    df["Rotten Percent"] = df["Rotten Tomatoes"].str.replace("%", "").astype(float)
 
-    st.subheader("Analytics")
+    st.subheader("Interactive Analytics")
 
-    # Rating comparison scatter plot
-    st.markdown("### IMDB vs Metacritic")
-    scatter = alt.Chart(df.dropna(subset=["IMDB Rating", "Metacritic Score"])).mark_circle(size=80).encode(
+    # Genre bar chart
+    st.markdown("### 🎬 Movie Count by Genre")
+    genre_counts = df["Genre"].str.split(", ").explode().value_counts().reset_index()
+    genre_counts.columns = ["Genre", "Count"]
+    bar_genre = alt.Chart(genre_counts).mark_bar(color="#f27802").encode(
+        x="Count:Q", y=alt.Y("Genre:N", sort="-x")
+    )
+    st.altair_chart(bar_genre, use_container_width=True)
+
+    # Ratings comparison
+    st.markdown("### 📊 IMDB vs Metacritic vs Rotten Tomatoes")
+    scatter = alt.Chart(df.dropna(subset=["IMDB Rating", "Metacritic Score", "Rotten Percent"])).mark_circle(size=80).encode(
         x="IMDB Rating",
         y="Metacritic Score",
-        tooltip=["Title", "IMDB Rating", "Metacritic Score"]
+        size="Rotten Percent",
+        color="Genre:N",
+        tooltip=["Title", "Director", "IMDB Rating", "Metacritic Score", "Rotten Percent"]
     ).interactive()
     st.altair_chart(scatter, use_container_width=True)
 
-    # Histogram of Metacritic
-    st.markdown("### Metacritic Score Distribution")
-    st.bar_chart(df["Metacritic Score"].dropna())
+    # Ratings over time
+    st.markdown("### 📈 Average Ratings by Year")
+    ratings_by_year = df.groupby("Year")[["IMDB Rating", "Metacritic Score"]].mean().reset_index()
+    line = alt.Chart(ratings_by_year).transform_fold(
+        ["IMDB Rating", "Metacritic Score"], as_=["Source", "Rating"]
+    ).mark_line().encode(
+        x="Year:O",
+        y="Rating:Q",
+        color="Source:N"
+    )
+    st.altair_chart(line, use_container_width=True)
 
-    # Histogram of Release Year
-    st.markdown("### Release Year Distribution")
-    st.bar_chart(df["Year"].dropna())
-
-    # Box Office vs Budget scatter
-    st.markdown("### Adjusted Box Office vs Budget")
-    scatter2 = alt.Chart(df.dropna(subset=["Box Office (Adj)", "Budget (Adj)"])).mark_circle(size=80).encode(
+    # Bubble chart
+    st.markdown("### 💰 Box Office vs Budget (Bubble Size = IMDB Rating)")
+    bubble = alt.Chart(df.dropna(subset=["Box Office (Adj)", "Budget (Adj)", "IMDB Rating"])).mark_circle().encode(
         x="Budget (Adj)",
         y="Box Office (Adj)",
-        tooltip=["Title", "Box Office (Adj)", "Budget (Adj)"]
+        size="IMDB Rating",
+        color="Genre:N",
+        tooltip=["Title", "Box Office (Adj)", "Budget (Adj)", "IMDB Rating"]
     ).interactive()
-    st.altair_chart(scatter2, use_container_width=True)
+    st.altair_chart(bubble, use_container_width=True)
 
-tabs = st.tabs(["Data Management", "Analytics"])
+def top_100_tab():
+    st.subheader("📥 Upload Your Top 100 Ranked Movies")
+    uploaded_file = st.file_uploader("Upload CSV file with columns: Title, Rank", type="csv")
+
+    if uploaded_file:
+        rank_df = pd.read_csv(uploaded_file)
+        rank_df = rank_df.dropna(subset=["Title", "Rank"])
+        collection = load_data()
+
+        added_movies = []
+        for _, row in rank_df.iterrows():
+            title = row["Title"].strip()
+            if title in collection["Title"].values:
+                continue
+            movie = fetch_movie_data(title)
+            if movie:
+                movie["Date Added"] = datetime.now().strftime("%Y-%m-%d")
+                movie["Rank"] = row["Rank"]
+                added_movies.append(movie)
+
+        if added_movies:
+            combined = pd.DataFrame(added_movies)
+            collection = pd.concat([collection, combined], ignore_index=True)
+            save_data(collection)
+            st.success(f"🎉 Added {len(added_movies)} ranked movies!")
+
+        st.markdown("### 🏆 Top 100 Ranked List")
+        full = collection[collection["Title"].isin(rank_df["Title"])].copy()
+        full["Rank"] = pd.to_numeric(full["Rank"], errors="coerce")
+        st.dataframe(full.sort_values("Rank"), use_container_width=True)
+
+# Tabs
+tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
 with tabs[0]:
     data_management_tab()
-
 with tabs[1]:
     analytics_tab()
+with tabs[2]:
+    top_100_tab()
