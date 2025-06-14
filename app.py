@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from tmdb_api import fetch_movie_data
+import altair as alt
 import os
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
@@ -51,7 +52,6 @@ def load_data():
     return pd.DataFrame(columns=REQUIRED_COLUMNS)
 
 def validate_movie_data(data):
-    """Ensure all required columns are present and consistently ordered."""
     for col in REQUIRED_COLUMNS:
         if col not in data:
             data[col] = None
@@ -64,12 +64,16 @@ tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 with tabs[0]:
     st.subheader("Add Movies to Your Collection")
     title_input = st.text_area("Enter movie titles (one per line):")
+
     if st.button("Add Movies"):
         if title_input.strip():
             movie_titles = [title.strip() for title in title_input.strip().split("\n") if title.strip()]
             existing_df = load_data()
+
             with st.spinner("Fetching movie data..."):
                 new_movies, skipped, not_found = [], [], []
+                progress_bar = st.progress(0)
+
                 for i, title in enumerate(movie_titles):
                     if title in existing_df["Title"].values:
                         skipped.append(title)
@@ -80,19 +84,20 @@ with tabs[0]:
                         new_movies.append(validated)
                     else:
                         not_found.append(title)
-                    st.progress((i + 1) / len(movie_titles))
-            if new_movies:
-                df_new = pd.DataFrame(new_movies)
-                df_new["Date Added"] = datetime.now().strftime("%Y-%m-%d")
-                updated_df = pd.concat([existing_df, df_new], ignore_index=True)
-                updated_df.to_csv(BACKEND_PATH, index=False)
-                st.success(f"✅ Added: {len(new_movies)} movies")
-                if skipped:
-                    st.warning(f"⚠️ Skipped (already in collection): {', '.join(skipped)}")
-                if not_found:
-                    st.error(f"❌ Not found: {', '.join(not_found)}")
-            else:
-                st.info("No new movies were added.")
+                    progress_bar.progress((i + 1) / len(movie_titles))
+
+                if new_movies:
+                    df_new = pd.DataFrame(new_movies)
+                    df_new["Date Added"] = datetime.now().strftime("%Y-%m-%d")
+                    updated_df = pd.concat([existing_df, df_new], ignore_index=True)
+                    updated_df.to_csv(BACKEND_PATH, index=False)
+                    st.success(f"✅ Added: {len(new_movies)} movies")
+                    if skipped:
+                        st.warning(f"⚠️ Skipped (already in collection): {', '.join(skipped)}")
+                    if not_found:
+                        st.error(f"❌ Not found: {', '.join(not_found)}")
+                else:
+                    st.info("No new movies were added.")
 
     df = load_data()
     st.subheader("Your Movie Collection")
@@ -106,7 +111,46 @@ with tabs[0]:
 with tabs[1]:
     def analytics_tab():
         st.subheader("Analytics")
-        st.info("Analytics functionality will be added here.")
+        df = load_data()
+
+        if df.empty:
+            st.info("Add some movies to see analytics.")
+            return
+
+        # Genre Count Chart
+        if "Genre" in df.columns and df["Genre"].notna().any():
+            genre_counts = (
+                df["Genre"]
+                .dropna()
+                .str.split(",")
+                .explode()
+                .str.strip()
+                .value_counts()
+                .reset_index()
+            )
+            genre_counts.columns = ["Genre", "Count"]
+            st.altair_chart(
+                alt.Chart(genre_counts).mark_bar().encode(
+                    x=alt.X("Genre", sort="-y"),
+                    y="Count"
+                ).properties(title="Movies by Genre", width=600),
+                use_container_width=True
+            )
+
+        # IMDB Rating Distribution
+        if "IMDB Rating" in df.columns and df["IMDB Rating"].notna().any():
+            try:
+                df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
+                st.altair_chart(
+                    alt.Chart(df.dropna(subset=["IMDB Rating"])).mark_bar().encode(
+                        x=alt.X("IMDB Rating:Q", bin=True),
+                        y='count()'
+                    ).properties(title="Distribution of IMDB Ratings", width=600),
+                    use_container_width=True
+                )
+            except Exception as e:
+                st.warning("Couldn't render IMDB rating chart due to data issues.")
+
     analytics_tab()
 
 # --- Top 100 Tab ---
