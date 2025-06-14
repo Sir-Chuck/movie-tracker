@@ -1,190 +1,136 @@
-# app.py
-import os
-import pandas as pd
 import streamlit as st
+import pandas as pd
 from datetime import datetime
 from tmdb_api import fetch_movie_data
 import matplotlib.pyplot as plt
-import seaborn as sns
+import altair as alt
 
-DATA_FILE = "movies.csv"
+st.set_page_config(page_title="MovieGraph", layout="wide")
+st.markdown("""
+<style>
+    html, body, [class*="css"]  {
+        font-family: Verdana;
+        color: #2a2a2a;
+    }
+    .title {
+        font-family: 'Courier New', monospace;
+        font-weight: normal;
+        font-size: 36px;
+        margin-bottom: 0;
+    }
+    .subtitle {
+        font-size: 18px;
+        letter-spacing: 2px;
+        font-weight: bold;
+    }
+    .subtitle span:nth-child(1) { color: #f27802; }
+    .subtitle span:nth-child(2) { color: #2e0854; }
+    .subtitle span:nth-child(3) { color: #7786c8; }
+    .subtitle span:nth-child(4) { color: #708090; }
+    .subtitle span:nth-child(5) { color: #b02711; }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="title">MovieGraph</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle"><span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
+
 REQUIRED_COLUMNS = [
-    "Title", "Year", "Genre", "Director", "Cast", "IMDB Rating",
-    "Runtime", "Language", "Overview", "Date Added",
-    "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Metacritic Score"
+    "Title", "Year", "Genre", "Director", "Cast",
+    "IMDB Rating", "Metacritic Score",
+    "Runtime", "Language", "Overview",
+    "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added"
 ]
 
-# Style
-st.markdown("""
-    <style>
-        html, body, [class*="css"]  {
-            font-family: Verdana;
-            color: #2a2a2a;
-        }
-        .title-font {
-            font-family: 'Courier New', monospace;
-            font-weight: normal;
-            font-size: 36px;
-        }
-        .chuck {
-            font-size: 24px;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-st.markdown("""
-    <div class='title-font'>MovieGraph</div>
-    <div class='chuck'>
-        <span style='color:#f27802'>C</span><span style='color:#2e0854'>H</span><span style='color:#7786c8'>U</span><span style='color:#708090'>C</span><span style='color:#b02711'>K</span>
-    </div>
-""", unsafe_allow_html=True)
-
 def load_data():
-    if os.path.exists(DATA_FILE):
-        df = pd.read_csv(DATA_FILE)
-    else:
-        df = pd.DataFrame(columns=REQUIRED_COLUMNS)
+    if "movie_data" not in st.session_state:
+        st.session_state.movie_data = pd.DataFrame(columns=REQUIRED_COLUMNS)
+    return st.session_state.movie_data
 
-    for col in REQUIRED_COLUMNS:
-        if col not in df.columns:
-            df[col] = ""
-    return df[REQUIRED_COLUMNS]
+def save_data(df):
+    st.session_state.movie_data = df
 
-def is_duplicate(entry, df):
-    title = entry.get("Title", "").strip().lower()
-    year = str(entry.get("Year", "")).strip()
+def data_management_tab():
+    df = load_data()
 
-    if df.empty:
-        return False
-
-    df_check = df.copy()
-    df_check["Title"] = df_check["Title"].astype(str).str.strip().str.lower()
-    df_check["Year"] = df_check["Year"].astype(str).str.strip()
-
-    return ((df_check["Title"] == title) & (df_check["Year"] == year)).any()
-
-def add_movies(titles, df):
-    added, skipped, failed = [], [], []
-    progress = st.progress(0, text="⏳ Fetching movies...")
-
-    total = len(titles)
-    for i, title in enumerate(titles):
-        progress.progress((i + 1) / total, text=f"Fetching: {title} ({i+1}/{total})")
-
-        movie = fetch_movie_data(title)
-        if not movie:
-            failed.append(title)
-            continue
-
-        movie["Date Added"] = datetime.today().strftime("%Y-%m-%d")
-        for col in REQUIRED_COLUMNS:
-            movie.setdefault(col, "")
-
-        if not is_duplicate(movie, df):
-            df = pd.concat([df, pd.DataFrame([movie])], ignore_index=True)
-            added.append(title)
-        else:
-            skipped.append(title)
-
-    progress.empty()
-    return df, added, skipped, failed
-
-def show_data_management(df):
-    st.header("📥 Add Movies (Batch)")
-    titles_input = st.text_area("Enter one movie title per line:")
+    st.subheader("Add Movies to Your Collection")
+    titles = st.text_area("Enter movie titles (one per line):")
     if st.button("Add Movies"):
-        titles = [t.strip() for t in titles_input.splitlines() if t.strip()]
-        if titles:
-            df, added, skipped, failed = add_movies(titles, df)
-            df.to_csv(DATA_FILE, index=False)
+        titles_list = [t.strip() for t in titles.split("\n") if t.strip()]
+        added, skipped, not_found = [], [], []
 
-            st.success(f"✅ Added: {len(added)} movies")
-            if skipped:
-                st.info(f"⏭️ Skipped (already in collection): {len(skipped)}\n{', '.join(skipped)}")
-            if failed:
-                st.error(f"❌ Not found in TMDb: {len(failed)}\n{', '.join(failed)}")
+        with st.spinner("Fetching movie data..."):
+            for title in titles_list:
+                if title in df["Title"].values:
+                    skipped.append(title)
+                    continue
+                movie = fetch_movie_data(title)
+                if movie:
+                    movie["Date Added"] = datetime.now().strftime("%Y-%m-%d")
+                    df = pd.concat([df, pd.DataFrame([movie])], ignore_index=True)
+                    added.append(title)
+                else:
+                    not_found.append(title)
 
-    st.header("➕ Add Single Movie")
-    title_single = st.text_input("Movie title:")
-    if st.button("Add This Movie"):
-        if title_single.strip():
-            df, added, skipped, failed = add_movies([title_single.strip()], df)
-            df.to_csv(DATA_FILE, index=False)
+        save_data(df)
+        st.success(f"✅ Added: {len(added)} | ⏩ Skipped: {len(skipped)} | ❌ Not Found: {len(not_found)}")
+        if skipped:
+            st.info("Skipped Movies: " + ", ".join(skipped))
+        if not_found:
+            st.warning("Not Found: " + ", ".join(not_found))
 
-            if added:
-                st.success(f"✅ Added: {title_single}")
-            elif skipped:
-                st.info("⏭️ Skipped: already in collection")
-            elif failed:
-                st.error("❌ Could not find that movie")
+    st.subheader("Your Movie Collection")
+    st.markdown(f"**Total Movies:** {len(df)}")
+    st.dataframe(df[REQUIRED_COLUMNS], use_container_width=True)
 
-    st.header("🧼 Data Management")
-    if "data_cleared" not in st.session_state:
-        st.session_state["data_cleared"] = False
+    if st.button("Clear Data"):
+        st.session_state.movie_data = pd.DataFrame(columns=REQUIRED_COLUMNS)
+        st.success("All movie data cleared.")
+        st.experimental_rerun()
 
-    if st.button("❌ Clear All Movie Data"):
-        df = pd.DataFrame(columns=REQUIRED_COLUMNS)
-        df.to_csv(DATA_FILE, index=False)
-        st.session_state["data_cleared"] = True
-        st.success("All movie data has been cleared. Reloading...")
-
-    if st.session_state["data_cleared"]:
-        st.session_state["data_cleared"] = False
-        st.stop()
-
-    st.header("🎯 Your Movie Collection")
-    st.markdown(f"**Total Movies: {len(df)}**", unsafe_allow_html=True)
-    st.dataframe(df, use_container_width=True)
-
-def show_analytics(df):
-    st.header("📊 Movie Collection Analytics")
-
-    if df.empty or df["Title"].dropna().empty:
-        st.warning("No data to analyze. Add movies first.")
+def analytics_tab():
+    df = load_data()
+    if df.empty:
+        st.info("No data to analyze. Add movies first.")
         return
 
-    df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
     df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
+    df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
+    df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
+    df["Box Office (Adj)"] = pd.to_numeric(df["Box Office (Adj)"], errors="coerce")
+    df["Budget (Adj)"] = pd.to_numeric(df["Budget (Adj)"], errors="coerce")
 
-    st.subheader("🎬 By Release Year")
-    year_summary = df.groupby("Year")["Title"].count().reset_index(name="Movie Count")
-    st.dataframe(year_summary)
-    fig, ax = plt.subplots()
-    sns.histplot(df["Year"].dropna(), bins=20, color="#f27802", ax=ax)
-    ax.set_title("Distribution of Release Years")
-    st.pyplot(fig)
+    st.subheader("Analytics")
 
-    st.subheader("🎥 By Director")
-    dir_summary = df.groupby("Director").agg({"Title": "count", "IMDB Rating": "mean"}).reset_index()
-    st.dataframe(dir_summary.sort_values("Title", ascending=False).head(10))
+    # Rating comparison scatter plot
+    st.markdown("### IMDB vs Metacritic")
+    scatter = alt.Chart(df.dropna(subset=["IMDB Rating", "Metacritic Score"])).mark_circle(size=80).encode(
+        x="IMDB Rating",
+        y="Metacritic Score",
+        tooltip=["Title", "IMDB Rating", "Metacritic Score"]
+    ).interactive()
+    st.altair_chart(scatter, use_container_width=True)
 
-    st.subheader("📚 By Genre")
-    genre_counts = df["Genre"].str.split(", ").explode().value_counts().reset_index()
-    genre_counts.columns = ["Genre", "Count"]
-    st.dataframe(genre_counts.head(10))
-    fig, ax = plt.subplots()
-    sns.barplot(data=genre_counts.head(10), x="Count", y="Genre", palette=["#2e0854"]*10, ax=ax)
-    ax.set_title("Top Genres")
-    st.pyplot(fig)
+    # Histogram of Metacritic
+    st.markdown("### Metacritic Score Distribution")
+    st.bar_chart(df["Metacritic Score"].dropna())
 
-    st.subheader("⭐ By Actor")
-    actor_counts = df["Cast"].str.split(", ").explode().value_counts().reset_index()
-    actor_counts.columns = ["Actor", "Count"]
-    st.dataframe(actor_counts.head(10))
-    fig, ax = plt.subplots()
-    sns.barplot(data=actor_counts.head(10), x="Count", y="Actor", palette=["#7786c8"]*10, ax=ax)
-    ax.set_title("Most Frequent Actors")
-    st.pyplot(fig)
+    # Histogram of Release Year
+    st.markdown("### Release Year Distribution")
+    st.bar_chart(df["Year"].dropna())
 
-def main():
-    df = load_data()
-    tab1, tab2 = st.tabs(["Data Management", "Analytics"])
+    # Box Office vs Budget scatter
+    st.markdown("### Adjusted Box Office vs Budget")
+    scatter2 = alt.Chart(df.dropna(subset=["Box Office (Adj)", "Budget (Adj)"])).mark_circle(size=80).encode(
+        x="Budget (Adj)",
+        y="Box Office (Adj)",
+        tooltip=["Title", "Box Office (Adj)", "Budget (Adj)"]
+    ).interactive()
+    st.altair_chart(scatter2, use_container_width=True)
 
-    with tab1:
-        show_data_management(df)
+tabs = st.tabs(["Data Management", "Analytics"])
 
-    with tab2:
-        show_analytics(df)
+with tabs[0]:
+    data_management_tab()
 
-if __name__ == "__main__":
-    main()
+with tabs[1]:
+    analytics_tab()
