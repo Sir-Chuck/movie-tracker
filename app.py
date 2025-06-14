@@ -164,7 +164,11 @@ with tabs[1]:
         # 3. Top 10 Summary Tables
         category = st.selectbox("Top 10 By", ["Year", "Genre", "Director", "Cast"])
         def explode_column(df, col):
-            return df.dropna(subset=[col]).assign(**{col: df[col].dropna().str.split(",")}).explode(col).dropna(subset=[col])
+    df = df.dropna(subset=[col]).copy()
+    df[col] = df[col].astype(str).str.split(',')
+    df = df.explode(col)
+    df[col] = df[col].str.strip()
+    return df.dropna(subset=[col])
 
         top_df = explode_column(filtered_df, category).copy()
         summary = top_df.groupby(category).agg(
