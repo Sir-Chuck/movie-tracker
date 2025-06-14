@@ -3,8 +3,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from tmdb_api import fetch_movie_data
-import matplotlib.pyplot as plt
-import altair as alt
+from analytics_tab import analytics_tab
 import os
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
@@ -46,16 +45,15 @@ REQUIRED_COLUMNS = [
     "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added"
 ]
 
+def load_data():
+    if os.path.exists(BACKEND_PATH):
+        return pd.read_csv(BACKEND_PATH)
+    return pd.DataFrame(columns=REQUIRED_COLUMNS)
+
 # Display all tabs using Streamlit tabs
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
 with tabs[0]:
-
-    def load_data():
-        if os.path.exists(BACKEND_PATH):
-            return pd.read_csv(BACKEND_PATH)
-        return pd.DataFrame(columns=REQUIRED_COLUMNS)
-
     def data_management_tab():
         st.subheader("Add Movies to Your Collection")
         title_input = st.text_area("Enter movie titles (one per line):")
@@ -64,18 +62,19 @@ with tabs[0]:
                 movie_titles = [title.strip() for title in title_input.strip().split("\n") if title.strip()]
                 existing_df = load_data()
                 with st.spinner("Fetching movie data..."):
-                    progress_bar = st.progress(0)
                     new_movies, skipped, not_found = [], [], []
+                    progress = st.progress(0)
                     for i, title in enumerate(movie_titles):
                         if title in existing_df["Title"].values:
                             skipped.append(title)
+                            progress.progress((i + 1) / len(movie_titles))
                             continue
                         data = fetch_movie_data(title)
                         if data:
                             new_movies.append(data)
                         else:
                             not_found.append(title)
-                        progress_bar.progress((i + 1) / len(movie_titles))
+                        progress.progress((i + 1) / len(movie_titles))
                 if new_movies:
                     df_new = pd.DataFrame(new_movies)
                     df_new["Date Added"] = datetime.now().strftime("%Y-%m-%d")
@@ -89,7 +88,7 @@ with tabs[0]:
                 else:
                     st.info("No new movies were added.")
 
-        if st.button("Clear All Data"):
+        if st.button("Clear All Movie Data"):
             if os.path.exists(BACKEND_PATH):
                 os.remove(BACKEND_PATH)
                 st.success("All movie data cleared.")
@@ -102,20 +101,10 @@ with tabs[0]:
     data_management_tab()
 
 with tabs[1]:
-
-    def analytics_tab():
-        st.subheader("Analytics")
-        st.info("Analytics functionality will be added here.")
-
-    analytics_tab()
+    analytics_tab(load_data())
 
 with tabs[2]:
-
     def top_100_tab():
         st.subheader("Top 100")
         st.info("Top 100 movie ranking functionality will be added here.")
-
     top_100_tab()
-
-# Note: Make sure the sidebar filter logic for Analytics is inside `analytics_tab()`
-# and does not appear outside of tab logic.
