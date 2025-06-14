@@ -58,8 +58,7 @@ with tabs[0]:
         title_input = st.text_area("Enter movie titles (one per line):")
         if st.button("Add Movies"):
             if title_input.strip():
-                movie_titles = [title.strip() for title in title_input.strip().split("
-") if title.strip()]
+                movie_titles = [title.strip() for title in title_input.strip().split("\n") if title.strip()]
                 existing_def load_data():
         if os.path.exists(BACKEND_PATH):
             return pd.read_csv(BACKEND_PATH)
