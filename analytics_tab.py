@@ -117,4 +117,4 @@ def analytics_tab(df):
     base = alt.Chart(yearly.reset_index()).encode(x=alt.X("Year:O", title="Year", axis=alt.Axis(format="d")))
     bars = base.mark_bar(color="#f27802").encode(y=alt.Y("Movie_Count", axis=alt.Axis(title="Movie Count")))
     line = base.mark_line(color="#2e0854").encode(y=alt.Y("Avg_Rating", axis=alt.Axis(title="Avg Rating")))
-    st.altair_chart(bars + line, use_container_width=True)
+    st.altair_chart(bars + line, use_container_width=True) 
