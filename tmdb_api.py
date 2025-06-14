@@ -57,12 +57,21 @@ def fetch_movie_data(title):
     # Metacritic from OMDb
     metacritic = ""
     if OMDB_API_KEY:
+# OMDb Call for Metacritic score
+metacritic = ""
+if OMDB_API_KEY:
+    try:
         omdb_resp = requests.get(OMDB_BASE_URL, params={
             "t": title,
             "y": year,
             "apikey": OMDB_API_KEY
         }).json()
-        metacritic = omdb_resp.get("Metascore", "") or ""
+        st.write("OMDb response:", omdb_resp)  # Debug output
+        meta_raw = omdb_resp.get("Metascore", "")
+        if meta_raw and meta_raw != "N/A":
+            metacritic = meta_raw
+    except Exception as e:
+        st.write("OMDb fetch error:", e)
 
     return {
         "Title": detail.get("title"),
