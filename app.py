@@ -4,6 +4,10 @@ from datetime import datetime
 from tmdb_api import search_movie, get_best_match, get_movie_details
 import os
 
+# Ensure the data directory exists
+os.makedirs("data", exist_ok=True)
+
+
 # Load or create CSV
 DATA_PATH = "data/final_movie_data.csv"
 if os.path.exists(DATA_PATH):
