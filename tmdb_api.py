@@ -1,5 +1,6 @@
 import requests
 import streamlit as st
+from rapidfuzz import fuzz
 
 RAPIDAPI_KEY = st.secrets["rapidapi"]["key"]
 RAPIDAPI_HOST = st.secrets["rapidapi"]["host"]
@@ -20,11 +21,22 @@ def search_movie(title):
     return response.json().get("results", [])
 
 def get_best_match(title, results):
+    if not results:
+        return None
+
     title_lower = title.lower()
+    best_score = 0
+    best_result = None
+
     for r in results:
-        if r["title"].lower() == title_lower:
-            return r
-    return results[0] if results else None
+        candidate_title = r.get("title", "").lower()
+        score = fuzz.ratio(title_lower, candidate_title)
+        if score > best_score:
+            best_score = score
+            best_result = r
+
+    # Optional: apply a confidence threshold
+    return best_result if best_score > 60 else None
 
 def get_movie_details(movie_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}"
