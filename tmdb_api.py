@@ -22,7 +22,7 @@ def search_movie(title):
 
 def get_best_match(title, results):
     if not results:
-        return None
+        return None, 0
 
     title_lower = title.lower()
     best_score = 0
@@ -35,7 +35,7 @@ def get_best_match(title, results):
             best_score = score
             best_result = r
 
-    return best_result if best_score > 60 else None  # Add this line
+    return best_result, best_score
 
 def get_movie_details(movie_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}"
