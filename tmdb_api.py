@@ -59,6 +59,7 @@ def fetch_movie_data(title):
     if OMDB_API_KEY:
         omdb_resp = requests.get(OMDB_BASE_URL, params={
             "t": title,
+            "y": year,
             "apikey": OMDB_API_KEY
         }).json()
         metacritic = omdb_resp.get("Metascore", "") or ""
