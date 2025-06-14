@@ -50,15 +50,15 @@ REQUIRED_COLUMNS = [
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
 with tabs[0]:
-    from data_management_tab import data_management_tab
+    from app_sections import data_management_tab
     data_management_tab()
 
 with tabs[1]:
-    from analytics_tab import analytics_tab
+    from app_sections import analytics_tab
     analytics_tab()
 
 with tabs[2]:
-    from top_100_tab import top_100_tab
+    from app_sections import top_100_tab
     top_100_tab()
 
 # Note: Make sure the sidebar filter logic for Analytics is inside `analytics_tab()`
