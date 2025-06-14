@@ -23,7 +23,14 @@ def load_data():
     return df[REQUIRED_COLUMNS]
 
 def is_duplicate(entry, df):
-    return ((df["Title"] == entry["Title"]) & (df["Year"] == entry["Year"])).any()
+    title = entry["Title"].strip().lower()
+    year = str(entry["Year"]).strip()
+
+    df_check = df.copy()
+    df_check["Title"] = df_check["Title"].fillna("").str.strip().str.lower()
+    df_check["Year"] = df_check["Year"].fillna("").astype(str).str.strip()
+
+    return ((df_check["Title"] == title) & (df_check["Year"] == year)).any()
 
 def add_movies(titles, df):
     added, skipped, failed = [], [], []
