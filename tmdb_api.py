@@ -1,42 +1,51 @@
 import requests
-import streamlit as st
-from rapidfuzz import process
+import os
+from datetime import datetime
 
-TMDB_API_KEY = st.secrets["tmdb"]["key"]
+TMDB_API_KEY = os.getenv("TMDB_API_KEY") or "your_tmdb_api_key_here"
+TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
-def search_tmdb_movie(title):
-    url = "https://api.themoviedb.org/3/search/movie"
-    params = {"query": title, "api_key": TMDB_API_KEY}
+def search_movie(title):
+    url = f"{TMDB_BASE_URL}/search/movie"
+    params = {"api_key": TMDB_API_KEY, "query": title}
     response = requests.get(url, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        return data.get("results", [])
-    return []
+    response.raise_for_status()
+    results = response.json().get("results", [])
+    return results[0] if results else None
 
-def get_best_match(title, results):
-    titles = [movie["title"] for movie in results]
-    match, score, _ = process.extractOne(title, titles)
-    return match if score >= 80 else None
+def get_movie_details(movie_id):
+    url = f"{TMDB_BASE_URL}/movie/{movie_id}"
+    params = {"api_key": TMDB_API_KEY}
+    response = requests.get(url, params=params)
+    response.raise_for_status()
+    return response.json()
 
-def get_movie_data(title):
-    results = search_tmdb_movie(title)
+def get_movie_credits(movie_id):
+    url = f"{TMDB_BASE_URL}/movie/{movie_id}/credits"
+    params = {"api_key": TMDB_API_KEY}
+    response = requests.get(url, params=params)
+    response.raise_for_status()
+    return response.json()
 
-    if not results:
-        return {"fuzzy_match": None}
+def fetch_movie_data(title):
+    result = search_movie(title)
+    if not result:
+        return None
 
-    match_title = get_best_match(title, results)
+    movie_id = result["id"]
+    details = get_movie_details(movie_id)
+    credits = get_movie_credits(movie_id)
 
-    if match_title:
-        movie = next((m for m in results if m["title"] == match_title), None)
-        if movie:
-            return {
-                "title": movie["title"],
-                "release_date": movie.get("release_date", ""),
-                "overview": movie.get("overview", ""),
-                "vote_average": movie.get("vote_average", ""),
-                "tmdb_id": movie.get("id"),
-            }
-    elif results:
-        return {"fuzzy_match": results[0]["title"]}
+    directors = [person["name"] for person in credits["crew"] if person["job"] == "Director"]
+    cast = [actor["name"] for actor in credits["cast"][:3]]
+    genres = [genre["name"] for genre in details.get("genres", [])]
 
-    return {"fuzzy_match": None}
+    return {
+        "title": details.get("title"),
+        "release_year": details.get("release_date", "")[:4],
+        "genres": ", ".join(genres),
+        "director": ", ".join(directors),
+        "cast": ", ".join(cast),
+        "overview": details.get("overview"),
+        "date_added": datetime.today().strftime("%Y-%m-%d"),
+    }
