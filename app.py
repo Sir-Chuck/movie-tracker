@@ -168,7 +168,7 @@ with tabs[1]:
     df[col] = df[col].astype(str).str.split(',')
     df = df.explode(col)
     df[col] = df[col].str.strip()
-    return df.dropna(subset=[col])
+    return df
 
         top_df = explode_column(filtered_df, category).copy()
         summary = top_df.groupby(category).agg(
