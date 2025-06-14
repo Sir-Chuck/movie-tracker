@@ -92,7 +92,9 @@ def data_management_tab():
 
     st.subheader("Your Movie Collection")
     st.markdown(f"**Total Movies:** {len(df)}")
-    st.dataframe(df[REQUIRED_COLUMNS], use_container_width=True)
+    df_display = df.copy()
+    df_display["Top 100"] = df_display["Rank"].apply(lambda x: int(x) if pd.notna(x) and str(x).isdigit() else "")
+    st.dataframe(df_display[REQUIRED_COLUMNS + ["Top 100"]], use_container_width=True)
 
     if st.button("Clear Data"):
         st.session_state.movie_data = pd.DataFrame(columns=REQUIRED_COLUMNS)
@@ -110,9 +112,13 @@ def analytics_tab():
     df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
     df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
     df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
-    df["Box Office (Adj)"] = pd.to_numeric(df["Box Office (Adj)"], errors="coerce")
+    df["Box Office (Adj)"] = pd.to_numeric(df["Box Office (Adj)", errors="coerce")
     df["Budget (Adj)"] = pd.to_numeric(df["Budget (Adj)"], errors="coerce")
     df["Rotten Percent"] = pd.to_numeric(df["Rotten Tomatoes"].str.replace("%", "", regex=False), errors="coerce")
+
+    filter_top_100 = st.checkbox("Only show Top 100")
+    if filter_top_100:
+        df = df[pd.to_numeric(df["Rank"], errors="coerce").notna()]
 
     st.subheader("Interactive Analytics")
 
@@ -176,6 +182,7 @@ def top_100_tab():
             progress.progress((i + 1) / len(rank_df))
             title = row["Title"].strip()
             if title in collection["Title"].values:
+                collection.loc[collection["Title"] == title, "Rank"] = row["Rank"]
                 continue
             movie = fetch_movie_data(title)
             if movie:
@@ -186,13 +193,25 @@ def top_100_tab():
         if added_movies:
             combined = pd.DataFrame(added_movies)
             collection = pd.concat([collection, combined], ignore_index=True)
-            save_data(collection)
-            st.success(f"🎉 Added {len(added_movies)} ranked movies!")
+        save_data(collection)
+        st.success(f"🎉 Added {len(added_movies)} ranked movies!")
 
         st.markdown("### 🏆 Top 100 Ranked List")
-        full = collection[collection["Title"].isin(rank_df["Title"])].copy()
-        full["Rank"] = pd.to_numeric(full["Rank"], errors="coerce")
-        st.dataframe(full.sort_values("Rank")[["Rank", "Title"] + [col for col in REQUIRED_COLUMNS if col not in ["Title", "Rank"]]], use_container_width=True)
+        editable = collection[collection["Title"].isin(rank_df["Title"])].copy()
+        editable["Rank"] = pd.to_numeric(editable["Rank"], errors="coerce")
+        editable = editable.sort_values("Rank")
+        new_ranked = st.data_editor(
+            editable[["Rank", "Title"] + [col for col in REQUIRED_COLUMNS if col not in ["Title", "Rank"]]],
+            use_container_width=True,
+            num_rows="dynamic",
+            key="top100_edit"
+        )
+        if st.button("💾 Save Top 100 Rankings"):
+            updated = collection.set_index("Title")
+            for _, row in new_ranked.iterrows():
+                updated.at[row["Title"], "Rank"] = row["Rank"]
+            save_data(updated.reset_index())
+            st.success("Updated Top 100 rankings saved!")
 
 # Tabs
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
@@ -203,4 +222,3 @@ with tabs[1]:
     analytics_tab()
 with tabs[2]:
     top_100_tab()
-
