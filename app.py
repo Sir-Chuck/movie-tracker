@@ -35,7 +35,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="title">MovieGraph</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle"><span>B</<span>Y</<span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle"><span>B</<span>Y </<span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
 
 BACKEND_PATH = "data/backend_movie_data.csv"
 REQUIRED_COLUMNS = [
