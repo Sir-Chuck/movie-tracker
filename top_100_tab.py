@@ -1,11 +1,11 @@
-# top_100_tab.py
-
 import streamlit as st
 import pandas as pd
-import os
 from datetime import datetime
 from tmdb_api import fetch_movie_data
-from backend import load_data, save_data, BACKEND_PATH
+from backend import load_data, save_data
+import os
+
+BACKEND_PATH = "data/backend_movie_data.csv"
 
 def top_100_tab():
     st.subheader("📥 Upload Your Top 100 Movies")
@@ -28,34 +28,51 @@ def top_100_tab():
                     movie_data.append(data)
                 progress_bar.progress((i + 1) / len(df_uploaded))
 
-            if movie_data:
-                existing_df = load_data()
-                # Remove existing Top 100 movies
-                non_ranked_df = existing_df[existing_df["Rank"].isna()] if "Rank" in existing_df.columns else existing_df
-                df_new = pd.DataFrame(movie_data)
-                updated_df = pd.concat([non_ranked_df, df_new], ignore_index=True)
-                save_data(updated_df)
-                st.success("Top 100 movies added successfully!")
+        if movie_data:
+            existing_df = load_data()
+
+            # Remove all currently ranked movies
+            non_ranked_df = existing_df[existing_df["Rank"].isna()] if "Rank" in existing_df.columns else existing_df
+
+            df_new = pd.DataFrame(movie_data)
+            updated_df = pd.concat([non_ranked_df, df_new], ignore_index=True)
+            save_data(updated_df)
+            st.success("✅ Top 100 movies added successfully!")
 
     st.subheader("🎬 Current Top 100")
+
     df = load_data()
-    df_top100 = df.dropna(subset=["Rank"]).sort_values("Rank")
+    if "Rank" in df.columns:
+        df_top100 = df[df["Rank"].notna()].copy()
+        df_top100["Rank"] = pd.to_numeric(df_top100["Rank"], errors="coerce")
+        df_top100 = df_top100.sort_values("Rank")
 
-    if not df_top100.empty:
-        edited_df = st.data_editor(
-            df_top100[["Rank", "Title"]].sort_values("Rank"),
-            use_container_width=True,
-            num_rows="dynamic",
-            key="top100_editor"
-        )
-        if st.button("💾 Save Updated Rankings"):
-            for _, row in edited_df.iterrows():
-                df.loc[df["Title"] == row["Title"], "Rank"] = row["Rank"]
-            save_data(df)
-            st.success("Ranking updated!")
+        display_cols = [
+            "Rank", "Title", "Year", "Genre", "Director", "Cast",
+            "IMDB Rating", "Rotten Tomatoes", "Metacritic Score",
+            "Box Office", "Budget", "Date Added"
+        ]
+        display_cols = [col for col in display_cols if col in df_top100.columns]
 
-    if st.button("🗑️ Clear Top 100 Data"):
+        if not df_top100.empty:
+            st.caption("⬆️ Drag rows to reorder your rankings. Edit Rank or Title if needed.")
+            new_order = st.data_editor(
+                df_top100[display_cols],
+                use_container_width=True,
+                num_rows="dynamic",
+                key="top100_editor"
+            )
+
+            if st.button("💾 Save Updated Rankings"):
+                df_updated = df.copy()
+                for _, row in new_order.iterrows():
+                    df_updated.loc[df_updated["Title"] == row["Title"], "Rank"] = row["Rank"]
+                save_data(df_updated)
+                st.success("✅ Rankings updated!")
+
+    if st.button("🗑️ Clear All Top 100 Data"):
         df = load_data()
-        df["Rank"] = None
+        if "Rank" in df.columns:
+            df = df[df["Rank"].isna()]  # Keep only unranked entries
         save_data(df)
-        st.success("Top 100 rankings cleared.")
+        st.success("✅ Top 100 data cleared.")
