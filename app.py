@@ -107,7 +107,7 @@ with tabs[0]:
     df = data_management_tab()
 
 with tabs[1]:
-    analytics_tab(df, show_filters=True)
+    analytics_tab(df)
 
 with tabs[2]:
     st.subheader("Top 100")
