@@ -4,6 +4,7 @@ import pandas as pd
 from datetime import datetime
 from tmdb_api import fetch_movie_data
 from analytics_tab import analytics_tab
+from filters import apply_filters
 import os
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
@@ -101,7 +102,11 @@ def data_management_tab():
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
 with tabs[0]:
-    df = data_management_tab()
+    raw_df = data_management_tab()
+    df = apply_filters(raw_df)
+
+with tabs[1]:
+    analytics_tab(df)
 
 with tabs[1]:
     analytics_tab(df, show_filters=True)
