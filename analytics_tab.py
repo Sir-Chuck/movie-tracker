@@ -62,10 +62,20 @@ def analytics_tab(df):
         (df["Cast"].apply(lambda c: any(x in c for x in selected_actors)) if selected_actors else True)
     ]
 
+    filtered_df = filtered_df.copy()
+    
+    for col in ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"]:
+    filtered_df[col] = pd.to_numeric(
+        filtered_df[col].astype(str).str.replace("%", "").str.strip(),
+        errors="coerce"
+    )
+
+    plot_df = filtered_df.dropna(subset=["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
+    
     # Ratings Histogram
     rating_type = st.selectbox("Select Rating for Histogram", ["IMDB Rating", "Rotten Percent", "Metacritic Score"])
     st.altair_chart(
-        alt.Chart(filtered_df).mark_bar().encode(
+        alt.Chart(plot_df).mark_bar().encode(
             x=alt.X(f"{rating_type}:Q", bin=True, title=rating_type),
             y=alt.Y("count()", title="Movie Count"),
             tooltip=[rating_type, "count()"]
@@ -75,7 +85,7 @@ def analytics_tab(df):
 
     # Ratings Scatter
     st.altair_chart(
-        alt.Chart(filtered_df).mark_circle().encode(
+        alt.Chart(plot_df).mark_circle().encode(
             x=alt.X("IMDB Rating", title="IMDB Rating"),
             y=alt.Y("Rotten Percent", title="Rotten Tomatoes %"),
             size=alt.Size("Metacritic Score", scale=alt.Scale(range=[20, 300])),
