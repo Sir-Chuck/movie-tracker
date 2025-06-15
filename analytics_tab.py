@@ -38,15 +38,15 @@ def analytics_tab(df):
     df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
 
     # === Filters ===
-    st.subheader("🔍 Filters")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        year_range = st.slider("Year", int(df["Year"].min()), int(df["Year"].max()), (int(df["Year"].min()), int(df["Year"].max())))
+    with st.sidebar:
+        st.markdown("## 🔍 Filters")
+        year_range = st.slider("Year", int(df["Year"].min()), int(df["Year"].max()),
+                               (int(df["Year"].min()), int(df["Year"].max())))
         genre_filter = st.multiselect("Genres", all_genres)
-    with col2:
-        budget_range = st.slider("Budget ($)", int(df["Budget"].min()), int(df["Budget"].max()), (int(df["Budget"].min()), int(df["Budget"].max())))
-        box_office_range = st.slider("Box Office ($)", int(df["Box Office"].min()), int(df["Box Office"].max()), (int(df["Box Office"].min()), int(df["Box Office"].max())))
-    with col3:
+        budget_range = st.slider("Budget ($)", int(df["Budget"].min()), int(df["Budget"].max()),
+                                 (int(df["Budget"].min()), int(df["Budget"].max())))
+        box_office_range = st.slider("Box Office ($)", int(df["Box Office"].min()), int(df["Box Office"].max()),
+                                     (int(df["Box Office"].min()), int(df["Box Office"].max())))
         director_filter = st.multiselect("Directors", all_directors)
         actor_filter = st.multiselect("Actors", all_cast)
     
