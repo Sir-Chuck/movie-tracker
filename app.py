@@ -98,14 +98,16 @@ def data_management_tab():
     st.dataframe(df.sort_values("Date Added", ascending=False), use_container_width=True)
     return df
 
-tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
+# Select tab (hidden or visible)
+selected_tab = st.radio("Select tab", ["Data Management", "Analytics", "Top 100"], horizontal=True)
 
-with tabs[0]:
+# Show relevant tab content
+if selected_tab == "Data Management":
     df = data_management_tab()
 
-with tabs[1]:
+elif selected_tab == "Analytics":
     analytics_tab(df)
 
-with tabs[2]:
+elif selected_tab == "Top 100":
     st.subheader("Top 100")
     st.info("Top 100 movie ranking functionality will be added here.")
