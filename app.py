@@ -27,6 +27,7 @@ st.markdown("""
         font-weight: bold;
     }
     .subtitle span:nth-child(1) { color: #f27802; }
+    .subtitle span:nth-child(1) { color: #f27802; }
     .subtitle span:nth-child(2) { color: #2e0854; }
     .subtitle span:nth-child(3) { color: #7786c8; }
     .subtitle span:nth-child(4) { color: #708090; }
