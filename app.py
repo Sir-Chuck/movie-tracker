@@ -4,7 +4,6 @@ import pandas as pd
 from datetime import datetime
 from tmdb_api import fetch_movie_data
 from analytics_tab import analytics_tab
-from filters import apply_filters
 import os
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
@@ -105,10 +104,8 @@ with tabs[0]:
     df = data_management_tab()
 
 with tabs[1]:
-    if isinstance(df, pd.DataFrame) and not df.empty:
-        analytics_tab(df)
-    else:
-        st.warning("⚠️ No data loaded yet. Add movies in the Data Management tab.")
+    analytics_tab(df, show_filters=True)
 
 with tabs[2]:
-    top_100_tab(df) if "top_100_tab" in globals() else st.info("Top 100 coming soon!")
+    st.subheader("Top 100")
+    st.info("Top 100 movie ranking functionality will be added here.")
