@@ -1,95 +1,166 @@
-# analytics_tab.py
-
 import streamlit as st
 import pandas as pd
 import altair as alt
 import ast
 
 def analytics_tab(df):
-    st.subheader("Analytics")
+    st.header("🎬 Analytics Dashboard")
 
-    # Convert and explode list columns
-    for col in ["Genre", "Cast"]:
-        df[col] = df[col].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else [])
-    df = df.explode("Genre")
-    df = df.explode("Cast")
+    # Parse Genre and Cast
+    def parse_list_column(col):
+        return col.apply(lambda x: ast.literal_eval(x) if isinstance(x, str) and x.startswith("[") else [])
 
-    # Convert numerical fields
-    for col in ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score", "Box Office", "Budget"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+    df["Genre"] = parse_list_column(df.get("Genre", pd.Series([])))
+    df["Cast"] = parse_list_column(df.get("Cast", pd.Series([])))
 
-    # Sidebar-style filters shown only on Analytics tab
-    with st.container():
-        st.markdown("### Filters")
+    # Normalize numeric columns
+    for col in ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"]:
+        df[col] = pd.to_numeric(df[col].astype(str).str.replace("%", "").str.strip(), errors="coerce")
 
-        year_min, year_max = int(df["Year"].min()), int(df["Year"].max())
-        year_range = st.slider("Filter by Year", year_min, year_max, (year_min, year_max))
+    for money_col in ["Box Office", "Budget"]:
+        df[money_col] = pd.to_numeric(df[money_col].astype(str).str.replace("[$,]", "", regex=True), errors="coerce")
 
-        genre_options = sorted(df["Genre"].dropna().unique().tolist())
-        selected_genres = st.multiselect("Filter by Genre", genre_options, default=genre_options)
+    df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
 
-        budget_range = st.slider("Budget ($)", int(df["Budget"].min()), int(df["Budget"].max()),
-                                 (int(df["Budget"].min()), int(df["Budget"].max())))
-        box_office_range = st.slider("Box Office ($)", int(df["Box Office"].min()), int(df["Box Office"].max()),
-                                     (int(df["Box Office"].min()), int(df["Box Office"].max())))
+    # Generate unique lists
+    all_genres = sorted({g for genres in df["Genre"].dropna() for g in genres})
+    all_cast = sorted({c for cast in df["Cast"].dropna() for c in cast})
+    all_directors = sorted(df["Director"].dropna().unique())
 
-        director_options = sorted(df["Director"].dropna().unique().tolist())
-        selected_directors = st.multiselect("Director", director_options)
+    # === Filters ===
+    st.subheader("🔍 Filters")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        year_range = st.slider("Year", int(df["Year"].min()), int(df["Year"].max()), (int(df["Year"].min()), int(df["Year"].max())))
+        genre_filter = st.multiselect("Genres", all_genres)
+    with col2:
+        budget_range = st.slider("Budget ($)", int(df["Budget"].min()), int(df["Budget"].max()), (int(df["Budget"].min()), int(df["Budget"].max())))
+        box_office_range = st.slider("Box Office ($)", int(df["Box Office"].min()), int(df["Box Office"].max()), (int(df["Box Office"].min()), int(df["Box Office"].max())))
+    with col3:
+        director_filter = st.multiselect("Directors", all_directors)
+        actor_filter = st.multiselect("Actors", all_cast)
 
-        cast_options = sorted(df["Cast"].dropna().unique().tolist())
-        selected_cast = st.multiselect("Actor", cast_options)
+    def matches(row):
+        return (
+            year_range[0] <= row["Year"] <= year_range[1]
+            and budget_range[0] <= row["Budget"] <= budget_range[1]
+            and box_office_range[0] <= row["Box Office"] <= box_office_range[1]
+            and (not genre_filter or any(g in row["Genre"] for g in genre_filter))
+            and (not director_filter or row["Director"] in director_filter)
+            and (not actor_filter or any(a in row["Cast"] for a in actor_filter))
+        )
 
-    # Apply filters
-    filtered_df = df[
-        (df["Year"].between(*year_range)) &
-        (df["Genre"].isin(selected_genres)) &
-        (df["Budget"].between(*budget_range)) &
-        (df["Box Office"].between(*box_office_range))
-    ]
-    if selected_directors:
-        filtered_df = filtered_df[filtered_df["Director"].isin(selected_directors)]
-    if selected_cast:
-        filtered_df = filtered_df[filtered_df["Cast"].isin(selected_cast)]
+    filtered_df = df[df.apply(matches, axis=1)].copy()
 
-    # Ratings Distribution
-    rating_metric = st.selectbox("Select rating source for distribution", ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
-    hist = alt.Chart(filtered_df).mark_bar().encode(
-        x=alt.X(f"{rating_metric}:Q", bin=True),
-        y='count()',
-        tooltip=[rating_metric]
-    ).properties(title=f"{rating_metric} Distribution", width=600, height=400)
-    st.altair_chart(hist, use_container_width=True)
+    # === Ratings Histogram ===
+    rating_col = st.selectbox("Rating Type", ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
+    st.altair_chart(
+        alt.Chart(filtered_df.dropna(subset=[rating_col])).mark_bar().encode(
+            x=alt.X(rating_col, bin=True),
+            y="count()",
+            tooltip=[rating_col]
+        ).properties(height=300),
+        use_container_width=True
+    )
 
-    # Ratings Scatter
-    scatter = alt.Chart(filtered_df).mark_circle().encode(
-        x=alt.X('IMDB Rating', scale=alt.Scale(zero=False)),
-        y=alt.Y('Rotten Tomatoes', scale=alt.Scale(zero=False)),
-        size='Metacritic Score',
-        color='Metacritic Score',
-        tooltip=['Title', 'IMDB Rating', 'Rotten Tomatoes', 'Metacritic Score', 'Year', 'Director']
-    ).properties(title="IMDB vs Rotten Tomatoes", width=700, height=500)
-    st.altair_chart(scatter, use_container_width=True)
+    # === Ratings Scatter ===
+    scatter_df = filtered_df.dropna(subset=["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
+    st.altair_chart(
+        alt.Chart(scatter_df).mark_circle().encode(
+            x="IMDB Rating",
+            y="Rotten Tomatoes",
+            size=alt.Size("Metacritic Score", scale=alt.Scale(range=[10, 400])),
+            color="Metacritic Score",
+            tooltip=["Title", "Year", "Director", "IMDB Rating", "Rotten Tomatoes", "Metacritic Score"]
+        ).properties(height=400),
+        use_container_width=True
+    )
 
-    # Top 10 Summary Table
-    top_by = st.selectbox("Top 10 by", ["Year", "Genre", "Director", "Cast"])
+    # === Top 10 Tables ===
+    st.subheader("🏆 Top 10 Summary")
+    summary_group = st.selectbox("Top 10 by", ["Year", "Genre", "Director", "Cast"])
+    if summary_group in ["Genre", "Cast"]:
+        exploded = df.explode(summary_group)
+    else:
+        exploded = df.copy()
+
     top_agg = (
-        filtered_df.groupby(top_by)
+        exploded.groupby(summary_group)
         .agg(
             Movie_Count=("Title", "count"),
             Avg_IMDB=("IMDB Rating", "mean"),
             Avg_RT=("Rotten Tomatoes", "mean"),
-            Avg_Meta=("Metacritic Score", "mean"),
+            Avg_MC=("Metacritic Score", "mean"),
             Total_Box=("Box Office", "sum")
         )
+        .dropna()
         .sort_values("Movie_Count", ascending=False)
         .head(10)
-        .reset_index()
+        .round(2)
     )
-    top_agg["Avg_IMDB"] = top_agg["Avg_IMDB"].round(2)
-    top_agg["Avg_RT"] = top_agg["Avg_RT"].round(2)
-    top_agg["Avg_Meta"] = top_agg["Avg_Meta"].round(2)
-    top_agg["Total_Box"] = top_agg["Total_Box"].map("${:,.2f}".format)
+
+    top_agg["Total_Box"] = top_agg["Total_Box"].apply(lambda x: f"${x:,.2f}")
     st.dataframe(top_agg)
 
-    # Add more charts here as needed (Budget vs Box Office, Dual Axis Yearly Chart, etc.)
+    # === Category Scatterplot ===
+    st.subheader("📈 Ratings by Category")
+    bubble_cat = st.selectbox("Bubble Category", ["Genre", "Year", "Director", "Cast"])
+    bubble_df = df.explode(bubble_cat) if bubble_cat in ["Genre", "Cast"] else df
+
+    grouped = (
+        bubble_df.groupby(bubble_cat)
+        .agg(
+            avg_rt=("Rotten Tomatoes", "mean"),
+            avg_imdb=("IMDB Rating", "mean"),
+            avg_mc=("Metacritic Score", "mean"),
+            count=("Title", "count")
+        )
+        .dropna()
+        .reset_index()
+        .round(2)
+    )
+
+    st.altair_chart(
+        alt.Chart(grouped).mark_circle().encode(
+            x="avg_imdb",
+            y="avg_rt",
+            size="count",
+            color="avg_mc",
+            tooltip=[bubble_cat, "avg_rt", "avg_imdb", "avg_mc", "count"]
+        ).properties(height=400),
+        use_container_width=True
+    )
+
+    # === Budget vs Box Office ===
+    st.subheader("💰 Budget vs Box Office")
+    bo_df = filtered_df.dropna(subset=["Box Office", "Budget", "IMDB Rating", "Rotten Tomatoes"])
+    st.altair_chart(
+        alt.Chart(bo_df).mark_circle().encode(
+            x=alt.X("Budget", scale=alt.Scale(zero=False)),
+            y=alt.Y("Box Office", scale=alt.Scale(zero=False)),
+            size="Rotten Tomatoes",
+            color="IMDB Rating",
+            tooltip=["Title", "Year", "Budget", "Box Office", "IMDB Rating", "Rotten Tomatoes"]
+        ).properties(height=400),
+        use_container_width=True
+    )
+
+    # === Dual Axis Chart ===
+    st.subheader("📊 Movies Per Year vs Avg Rating")
+    rating_axis = st.selectbox("Select Rating", ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
+    year_df = (
+        df.groupby("Year")
+        .agg(
+            count=("Title", "count"),
+            avg_rating=(rating_axis, "mean")
+        )
+        .dropna()
+        .reset_index()
+    )
+
+    base = alt.Chart(year_df).encode(x="Year:O")
+
+    bar = base.mark_bar().encode(y="count")
+    line = base.mark_line(color="#b02711").encode(y=alt.Y("avg_rating", axis=alt.Axis(title="Avg Rating")))
+
+    st.altair_chart((bar + line).resolve_scale(y="independent").properties(height=400), use_container_width=True)
