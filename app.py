@@ -105,11 +105,10 @@ with tabs[0]:
     raw_df = data_management_tab()
     df = apply_filters(raw_df)
 
-
 with tabs[1]:
-    isinstance(df, pd.DataFrame):
-    analytics_tab(df)
-
+    if isinstance(df, pd.DataFrame):
+        analytics_tab(df)
+        
 with tabs[2]:
     st.subheader("Top 100")
     st.info("Top 100 movie ranking functionality will be added here.")
