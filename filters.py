@@ -7,8 +7,15 @@ def apply_filters(df):
     def parse_list_column(col):
         return col.apply(lambda x: ast.literal_eval(x) if isinstance(x, str) and x.startswith("[") else [])
 
-    df["Genre"] = parse_list_column(df.get("Genre", pd.Series([])))
-    df["Cast"] = parse_list_column(df.get("Cast", pd.Series([])))
+    if "Genre" in df.columns:
+        df["Genre"] = parse_list_column(df["Genre"])
+    else:
+        df["Genre"] = [[]] * len(df)
+    
+    if "Cast" in df.columns:
+        df["Cast"] = parse_list_column(df["Cast"])
+    else:
+        df["Cast"] = [[]] * len(df)
 
     df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
     df["Budget"] = pd.to_numeric(df["Budget"].astype(str).str.replace("[$,]", "", regex=True), errors="coerce")
