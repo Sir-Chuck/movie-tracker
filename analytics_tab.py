@@ -3,6 +3,18 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import ast
+import ast
+
+def safe_parse_list(val):
+    if isinstance(val, list):
+        return val
+    if isinstance(val, str):
+        try:
+            parsed = ast.literal_eval(val)
+            return parsed if isinstance(parsed, list) else []
+        except (ValueError, SyntaxError):
+            return []
+    return []
 
 def analytics_tab(df):
     st.subheader("📊 Analytics")
@@ -11,9 +23,9 @@ def analytics_tab(df):
         st.info("No data to display.")
         return
 
-    # Convert list-like strings to actual lists
-    df["Genre"] = df["Genre"].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else [])
-    df["Cast"] = df["Cast"].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else [])
+    # Use safe parser for Genre and Cast
+    df["Genre"] = df["Genre"].apply(safe_parse_list)
+    df["Cast"] = df["Cast"].apply(safe_parse_list)
 
     # Flatten Genre and Cast for summary
     genre_df = df.explode("Genre")
