@@ -9,6 +9,8 @@ def analytics_tab(df):
     # Apply filters and get filtered dataframe
     filtered_df, _ = apply_filters(df)
 
+    st.write("Rows in DataFrame:", len(df))
+
     # === Ratings Histogram ===
     rating_col = st.selectbox("Rating Type", ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
     if not filtered_df.empty and rating_col in filtered_df.columns:
