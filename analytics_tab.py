@@ -58,6 +58,13 @@ def analytics_tab(df):
         director_filter = st.multiselect("Directors", all_directors)
         actor_filter = st.multiselect("Actors", all_cast)
 
+    top_100_only = st.checkbox("Top 100 Only")
+
+    # Start with base filtered set
+    filtered_df = df.copy()
+    if top_100_only and "Rank" in df.columns:
+        filtered_df = filtered_df[filtered_df["Rank"].notna()]
+
     def matches(row):
         return (
             year_range[0] <= row["Year"] <= year_range[1]
