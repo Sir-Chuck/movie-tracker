@@ -27,11 +27,11 @@ st.markdown("""
         font-weight: bold;
     }
     .subtitle span:nth-child(1) { color: #f27802; }
-    .subtitle span:nth-child(1) { color: #f27802; }
-    .subtitle span:nth-child(2) { color: #2e0854; }
-    .subtitle span:nth-child(3) { color: #7786c8; }
-    .subtitle span:nth-child(4) { color: #708090; }
-    .subtitle span:nth-child(5) { color: #b02711; }
+    .subtitle span:nth-child(2) { color: #f27802; }
+    .subtitle span:nth-child(3) { color: #2e0854; }
+    .subtitle span:nth-child(4) { color: #7786c8; }
+    .subtitle span:nth-child(5) { color: #708090; }
+    .subtitle span:nth-child(6) { color: #b02711; }
 </style>
 """, unsafe_allow_html=True)
 
