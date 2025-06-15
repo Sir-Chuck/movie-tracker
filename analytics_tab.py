@@ -52,10 +52,11 @@ def analytics_tab(df):
     with col2:
         budget_range = st.slider("Budget ($)", int(df["Budget"].min()), int(df["Budget"].max()),
                                  (int(df["Budget"].min()), int(df["Budget"].max())))
+        director_filter = st.multiselect("Directors", all_directors)
+        
+    with col3:
         box_office_range = st.slider("Box Office ($)", int(df["Box Office"].min()), int(df["Box Office"].max()),
                                      (int(df["Box Office"].min()), int(df["Box Office"].max())))
-    with col3:
-        director_filter = st.multiselect("Directors", all_directors)
         actor_filter = st.multiselect("Actors", all_cast)
 
     top_100_only = st.checkbox("Top 100 Only")
