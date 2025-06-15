@@ -15,22 +15,45 @@ def top_100_tab():
             return
 
         with st.spinner("Fetching metadata..."):
+            existing_df = load_data()
+            existing_titles = existing_df["Title"].tolist()
+
             movie_data = []
+            skipped = []
+            not_found = []
+            progress_bar = st.progress(0)
+
             for i, row in df_uploaded.iterrows():
-                data = fetch_movie_data(row["Title"])
+                title = row["Title"]
+                if title in existing_titles:
+                    skipped.append(title)
+                    progress_bar.progress((i + 1) / len(df_uploaded))
+                    continue
+
+                data = fetch_movie_data(title)
                 if data:
                     data["Rank"] = row["Rank"]
                     data["Date Added"] = datetime.now().strftime("%Y-%m-%d")
                     movie_data.append(data)
+                else:
+                    not_found.append(title)
+
+                progress_bar.progress((i + 1) / len(df_uploaded))
 
             if movie_data:
-                existing_df = load_data()
-                # Remove existing Top 100 movies
+                # Remove old ranked movies and append new
                 non_ranked_df = existing_df[existing_df["Rank"].isna()]
                 df_new = pd.DataFrame(movie_data)
                 updated_df = pd.concat([non_ranked_df, df_new], ignore_index=True)
                 save_data(updated_df)
-                st.success("Top 100 movies added successfully!")
+                st.success(f"Added {len(movie_data)} new Top 100 movies.")
+
+            if skipped:
+                st.warning(f"Skipped (already in dataset): {', '.join(skipped)}")
+            if not_found:
+                st.error(f"Not found: {', '.join(not_found)}")
+            if not movie_data:
+                st.info("No new movies were added.")
 
     st.subheader("🎬 Current Top 100")
     df = load_data()
