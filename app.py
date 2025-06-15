@@ -102,13 +102,13 @@ def data_management_tab():
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
 with tabs[0]:
-    raw_df = data_management_tab()
-    df = apply_filters(raw_df)
+    df = data_management_tab()
 
 with tabs[1]:
-    if isinstance(df, pd.DataFrame):
+    if isinstance(df, pd.DataFrame) and not df.empty:
         analytics_tab(df)
-        
+    else:
+        st.warning("⚠️ No data loaded yet. Add movies in the Data Management tab.")
+
 with tabs[2]:
-    st.subheader("Top 100")
-    st.info("Top 100 movie ranking functionality will be added here.")
+    top_100_tab(df) if "top_100_tab" in globals() else st.info("Top 100 coming soon!")
