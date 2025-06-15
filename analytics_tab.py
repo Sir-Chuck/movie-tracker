@@ -136,7 +136,7 @@ def analytics_tab(df):
     # === Top 10 Summary Table ===
     st.subheader("🏆 Top 10 Summary")
     group_by = st.selectbox("Top 10 by", ["Year", "Genre", "Director", "Cast"])
-    exploded = df.explode(group_by) if group_by in ["Genre", "Cast"] else df
+    exploded = df.explode(group_by) if group_by in ["Genre", "Cast"] else filtered_df
 
     top_10 = (
         exploded.groupby(group_by)
@@ -158,7 +158,7 @@ def analytics_tab(df):
     # === Ratings by Category Bubble Chart ===
     st.subheader("📈 Ratings by Category")
     bubble_cat = st.selectbox("Bubble Category", ["Genre", "Year", "Director", "Cast"])
-    exploded_cat = df.explode(bubble_cat) if bubble_cat in ["Genre", "Cast"] else df
+    exploded_cat = df.explode(bubble_cat) if bubble_cat in ["Genre", "Cast"] else filtered_df
 
     bubble_df = (
         exploded_cat.groupby(bubble_cat)
