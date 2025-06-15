@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 from tmdb_api import fetch_movie_data
 from analytics_tab import analytics_tab
+from top_100_tab import top_100_tab
 # from data_management_tab import data_management_tab
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
@@ -110,5 +111,5 @@ with tabs[1]:
     analytics_tab(df)
 
 with tabs[2]:
-    st.subheader("Top 100")
-    st.info("Top 100 movie ranking functionality will be added here.")
+    top_100_tab()
+
