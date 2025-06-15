@@ -1,10 +1,13 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
+from filters import apply_filters
 import ast
 
 def analytics_tab(df, show_filters=False):
     st.header("🎬 Analytics Dashboard")
+
+    filtered_df, _ = apply_filters(df)
 
     # Parse Genre and Cast
     def parse_list_column(col):
