@@ -107,10 +107,8 @@ with tabs[0]:
 
 
 with tabs[1]:
-    if isinstance(df, pd.DataFrame):
-        analytics_tab(df)
-    else:
-        st.error("No data available for analytics.")
+    isinstance(df, pd.DataFrame):
+    analytics_tab(df)
 
 with tabs[2]:
     st.subheader("Top 100")
