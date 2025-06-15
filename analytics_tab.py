@@ -8,11 +8,26 @@ def analytics_tab(df):
 
     # Parse Genre and Cast
     def parse_list_column(col):
-        return col.apply(lambda x: ast.literal_eval(x) if isinstance(x, str) and x.startswith("[") else [])
+        return col.apply(
+            lambda x: [s.strip() for s in x.split(",")] if isinstance(x, str) and "," in x else
+            ast.literal_eval(x) if isinstance(x, str) and x.startswith("[") else
+            [] if pd.isna(x) else [x]
+        )
 
+    # Parse Genre and Cast
     df["Genre"] = parse_list_column(df.get("Genre", pd.Series([])))
     df["Cast"] = parse_list_column(df.get("Cast", pd.Series([])))
+    
+    # Sanity check to ensure they’re all lists
+    df["Genre"] = df["Genre"].apply(lambda x: x if isinstance(x, list) else [])
+    df["Cast"] = df["Cast"].apply(lambda x: x if isinstance(x, list) else [])
+    
+    # Generate unique lists
+    all_genres = sorted({g for genres in df["Genre"] for g in genres if isinstance(g, str)})
+    all_cast = sorted({c for cast in df["Cast"] for c in cast if isinstance(c, str)})
+    all_directors = sorted(df["Director"].dropna().unique())
 
+    
     # Normalize numeric columns
     for col in ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"]:
         df[col] = pd.to_numeric(df[col].astype(str).str.replace("%", "").str.strip(), errors="coerce")
@@ -21,11 +36,6 @@ def analytics_tab(df):
         df[money_col] = pd.to_numeric(df[money_col].astype(str).str.replace("[$,]", "", regex=True), errors="coerce")
 
     df["Year"] = pd.to_numeric(df["Year"], errors="coerce")
-
-    # Generate unique lists
-    all_genres = sorted({g for genres in df["Genre"].dropna() for g in genres})
-    all_cast = sorted({c for cast in df["Cast"].dropna() for c in cast})
-    all_directors = sorted(df["Director"].dropna().unique())
 
     # === Filters ===
     st.subheader("🔍 Filters")
@@ -39,7 +49,7 @@ def analytics_tab(df):
     with col3:
         director_filter = st.multiselect("Directors", all_directors)
         actor_filter = st.multiselect("Actors", all_cast)
-
+    
     def matches(row):
         return (
             year_range[0] <= row["Year"] <= year_range[1]
@@ -49,7 +59,7 @@ def analytics_tab(df):
             and (not director_filter or row["Director"] in director_filter)
             and (not actor_filter or any(a in row["Cast"] for a in actor_filter))
         )
-
+    
     filtered_df = df[df.apply(matches, axis=1)].copy()
 
     # === Ratings Histogram ===
