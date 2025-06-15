@@ -3,7 +3,7 @@ import pandas as pd
 import altair as alt
 import ast
 
-def analytics_tab(df):
+def analytics_tab(df, show_filters=False):
     st.header("🎬 Analytics Dashboard")
 
     # Parse Genre and Cast
