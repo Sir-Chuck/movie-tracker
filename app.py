@@ -26,18 +26,18 @@ st.markdown("""
         letter-spacing: 2px;
         font-weight: bold;
     }
-    .subtitle span:nth-child(1) { color: #c8afaf; }
-    .subtitle span:nth-child(2) { color: #c8afaf; }
-    .subtitle span:nth-child(3) { color: #f27802; }
-    .subtitle span:nth-child(4) { color: #2e0854; }
-    .subtitle span:nth-child(5) { color: #7786c8; }
-    .subtitle span:nth-child(6) { color: #708090; }
-    .subtitle span:nth-child(7) { color: #b02711; }
+    .subtitle span:nth-child(1) { color: #2a2a2a; }  /* B */
+    .subtitle span:nth-child(2) { color: #2a2a2a; }  /* Y */
+    .subtitle span:nth-child(3) { color: #f27802; }  /* C */
+    .subtitle span:nth-child(4) { color: #2e0854; }  /* H */
+    .subtitle span:nth-child(5) { color: #7786c8; }  /* U */
+    .subtitle span:nth-child(6) { color: #708090; }  /* C */
+    .subtitle span:nth-child(7) { color: #b02711; }  /* K */
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="title">MovieGraph</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle"><span>B</<span>Y </<span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle"><span>B</span><span>Y</span><span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
 
 BACKEND_PATH = "data/backend_movie_data.csv"
 REQUIRED_COLUMNS = [
