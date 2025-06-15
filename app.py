@@ -105,11 +105,12 @@ with tabs[0]:
     raw_df = data_management_tab()
     df = apply_filters(raw_df)
 
-with tabs[1]:
-    analytics_tab(df)
 
 with tabs[1]:
-    analytics_tab(df, show_filters=True)
+    if isinstance(df, pd.DataFrame):
+        analytics_tab(df)
+    else:
+        st.error("No data available for analytics.")
 
 with tabs[2]:
     st.subheader("Top 100")
