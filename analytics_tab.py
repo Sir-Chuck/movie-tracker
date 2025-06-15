@@ -85,16 +85,23 @@ def analytics_tab(df):
         use_container_width=True
     )
 
-    # Summary tables by category
-    category = st.selectbox("Top 10 by", ["Year", "Genre", "Cast", "Director"])
-    summary_df = (
-        (genre_df if category == "Genre" else cast_df if category == "Cast" else df)
-        .explode(category)
-        .groupby(category)
+    # Top 10 Summary Table
+    st.subheader("Top 10 Summary Table")
+    top_n_option = st.selectbox("Group by:", options=["Year", "Genre", "Director", "Cast"])
+    
+    df_top = df.copy()
+    
+    # Explode multi-value fields before groupby
+    if top_n_option in ["Genre", "Cast"]:
+        df_top = df_top.explode(top_n_option)
+    
+    # Group and aggregate
+    top_agg = (
+        df_top.groupby(top_n_option, dropna=True)
         .agg(
             Movie_Count=("Title", "count"),
             Avg_IMDB=("IMDB Rating", "mean"),
-            Avg_Rotten=("Rotten Percent", "mean"),
+            Avg_RT=("Rotten Tomatoes", "mean"),
             Avg_Meta=("Metacritic Score", "mean"),
             Avg_Box=("Box Office", "mean"),
             Total_Box=("Box Office", "sum")
@@ -103,17 +110,16 @@ def analytics_tab(df):
         .head(10)
         .reset_index()
     )
-
-    summary_df = summary_df.round({
-        "Avg_IMDB": 2,
-        "Avg_Rotten": 2,
-        "Avg_Meta": 2,
-        "Avg_Box": 2,
-        "Total_Box": 2
-    })
-
-    st.dataframe(summary_df)
-
+    
+    # Format
+    top_agg["Avg_IMDB"] = top_agg["Avg_IMDB"].round(2)
+    top_agg["Avg_RT"] = top_agg["Avg_RT"].round(2)
+    top_agg["Avg_Meta"] = top_agg["Avg_Meta"].round(2)
+    top_agg["Avg_Box"] = top_agg["Avg_Box"].apply(lambda x: f"${x:,.2f}")
+    top_agg["Total_Box"] = top_agg["Total_Box"].apply(lambda x: f"${x:,.2f}")
+    
+    st.dataframe(top_agg, use_container_width=True)
+    
     # Dual-axis: movies per year vs avg rating
     rating_axis = st.selectbox("Average Rating (Right Y-Axis)", ["IMDB Rating", "Rotten Percent", "Metacritic Score"])
     dual_df = df.groupby("Year").agg(
