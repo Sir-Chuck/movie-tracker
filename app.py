@@ -1,12 +1,41 @@
 # app.py
 import streamlit as st
 import pandas as pd
-import os
 from datetime import datetime
 from tmdb_api import fetch_movie_data
 from analytics_tab import analytics_tab
+import os
 
 st.set_page_config(page_title="MovieGraph", layout="wide")
+
+# Branding styles
+st.markdown("""
+<style>
+    html, body, [class*="css"]  {
+        font-family: Verdana;
+        color: #2a2a2a;
+    }
+    .title {
+        font-family: 'Courier New', monospace;
+        font-weight: normal;
+        font-size: 36px;
+        margin-bottom: 0;
+    }
+    .subtitle {
+        font-size: 18px;
+        letter-spacing: 2px;
+        font-weight: bold;
+    }
+    .subtitle span:nth-child(1) { color: #f27802; }
+    .subtitle span:nth-child(2) { color: #2e0854; }
+    .subtitle span:nth-child(3) { color: #7786c8; }
+    .subtitle span:nth-child(4) { color: #708090; }
+    .subtitle span:nth-child(5) { color: #b02711; }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="title">MovieGraph</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle"><span>C</span><span>H</span><span>U</span><span>C</span><span>K</span></div>', unsafe_allow_html=True)
 
 BACKEND_PATH = "data/backend_movie_data.csv"
 REQUIRED_COLUMNS = [
@@ -16,16 +45,13 @@ REQUIRED_COLUMNS = [
     "Box Office", "Box Office (Adj)", "Budget", "Budget (Adj)", "Date Added"
 ]
 
-# Ensure data directory exists
-if not os.path.exists("data"):
-    os.makedirs("data")
-
 def load_data():
     if os.path.exists(BACKEND_PATH):
         return pd.read_csv(BACKEND_PATH)
     return pd.DataFrame(columns=REQUIRED_COLUMNS)
 
 def save_data(df):
+    os.makedirs(os.path.dirname(BACKEND_PATH), exist_ok=True)
     df.to_csv(BACKEND_PATH, index=False)
 
 def data_management_tab():
@@ -72,11 +98,6 @@ def data_management_tab():
     st.dataframe(df.sort_values("Date Added", ascending=False), use_container_width=True)
     return df
 
-def top_100_tab():
-    st.subheader("Top 100")
-    st.info("Top 100 movie ranking functionality will be added here.")
-
-# Set up main navigation tabs
 tabs = st.tabs(["Data Management", "Analytics", "Top 100"])
 
 with tabs[0]:
@@ -86,4 +107,5 @@ with tabs[1]:
     analytics_tab(df)
 
 with tabs[2]:
-    top_100_tab()
+    st.subheader("Top 100")
+    st.info("Top 100 movie ranking functionality will be added here.")
