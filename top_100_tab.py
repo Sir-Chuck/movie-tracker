@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 from tmdb_api import fetch_movie_data
 from backend import load_data, save_data
+import os
 
 def top_100_tab():
     st.subheader("📥 Upload Your Top 100 Movies")
@@ -21,8 +22,8 @@ def top_100_tab():
             movie_data = []
             skipped = []
             not_found = []
-            progress_bar = st.progress(0)
 
+            progress_bar = st.progress(0)
             for i, row in df_uploaded.iterrows():
                 title = row["Title"]
                 if title in existing_titles:
@@ -37,23 +38,21 @@ def top_100_tab():
                     movie_data.append(data)
                 else:
                     not_found.append(title)
-
                 progress_bar.progress((i + 1) / len(df_uploaded))
 
             if movie_data:
-                # Remove old ranked movies and append new
                 non_ranked_df = existing_df[existing_df["Rank"].isna()]
                 df_new = pd.DataFrame(movie_data)
                 updated_df = pd.concat([non_ranked_df, df_new], ignore_index=True)
                 save_data(updated_df)
-                st.success(f"Added {len(movie_data)} new Top 100 movies.")
+                st.success(f"✅ Added {len(movie_data)} movies.")
+            else:
+                st.info("No new movies were added.")
 
             if skipped:
-                st.warning(f"Skipped (already in dataset): {', '.join(skipped)}")
+                st.warning(f"⚠️ Skipped (already in dataset): {', '.join(skipped)}")
             if not_found:
-                st.error(f"Not found: {', '.join(not_found)}")
-            if not movie_data:
-                st.info("No new movies were added.")
+                st.error(f"❌ Not found: {', '.join(not_found)}")
 
     st.subheader("🎬 Current Top 100")
     df = load_data()
@@ -62,7 +61,14 @@ def top_100_tab():
         new_order = st.data_editor(df_top100[["Rank", "Title"]], use_container_width=True, num_rows="dynamic")
         if st.button("Save Ranking"):
             df_updated = df.copy()
-            for i, row in new_order.iterrows():
+            for _, row in new_order.iterrows():
                 df_updated.loc[df_updated["Title"] == row["Title"], "Rank"] = row["Rank"]
             save_data(df_updated)
-            st.success("Ranking updated!")
+            st.success("✅ Ranking updated!")
+
+    # Clear only Top 100 entries
+    if st.button("❌ Clear Top 100 Data"):
+        df = load_data()
+        df = df[df["Rank"].isna()]  # Keep only unranked movies
+        save_data(df)
+        st.success("Top 100 movie data cleared.")
