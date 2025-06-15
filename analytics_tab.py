@@ -47,11 +47,7 @@ def analytics_tab(df, show_filters=False):
         budget_range = st.slider("Budget ($)", int(df["Budget"].min()), int(df["Budget"].max()), (int(df["Budget"].min()), int(df["Budget"].max())))
         director_filter = st.multiselect("Directors", all_directors)
     with col3:
-        box_office_range = st.slider("Box Office ($)",
-                                     int(df["Box Office"].min()),
-                                     int(df["Box Office"].max()),
-                                     (int(df["Box Office"].min()), int(df["Box Office"].max())))
-        st.caption(f"Selected Range: ${box_office_range[0]:,} - ${box_office_range[1]:,}")
+        box_office_range = st.slider("Box Office ($)", int(df["Box Office"].min()), int(df["Box Office"].max()), (int(df["Box Office"].min()), int(df["Box Office"].max())))
         actor_filter = st.multiselect("Actors", all_cast)
     
     def matches(row):
