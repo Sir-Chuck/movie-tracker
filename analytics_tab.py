@@ -37,7 +37,7 @@ def analytics_tab(df):
     df["IMDB Rating"] = pd.to_numeric(df["IMDB Rating"], errors="coerce")
     df["Metacritic Score"] = pd.to_numeric(df["Metacritic Score"], errors="coerce")
 
-    df["Rotten Percent"] = df["Rotten Tomatoes"].str.replace("%", "", regex=True).astype(float)
+    df["Rotten Tomatoes"] = pd.to_numeric(df["Rotten Tomatoes"].astype(str).str.replace("%", "").str.strip(), errors="coerce") 
 
     # Sidebar filters – only on Analytics tab
     with st.sidebar:
