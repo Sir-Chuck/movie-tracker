@@ -79,12 +79,12 @@ def analytics_tab(df):
     with col6:
         actor_filter = st.multiselect("Actors", all_cast)
     
-    # Third row: checkbox
+    # Checkbox: Top 100 Only
     top_100_only = st.checkbox("Top 100 Only")
-        
-    # Apply filtering logic
+    
+    # Apply checkbox filter
     filtered_df = df.copy()
-    if top_100_only and "Rank" in df.columns:
+    if top_100_only and "Rank" in filtered_df.columns:
         filtered_df = filtered_df[filtered_df["Rank"].notna()]
     
     def matches(row):
@@ -97,7 +97,7 @@ def analytics_tab(df):
             and (not actor_filter or any(a in row["Cast"] for a in actor_filter))
         )
 
-    filtered_df = df[df.apply(matches, axis=1)].copy()
+    filtered_df = filtered_df[filtered_df.apply(matches, axis=1)].copy()
 
     # === Ratings Histogram ===
     rating_col = st.selectbox("Rating Type", ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
