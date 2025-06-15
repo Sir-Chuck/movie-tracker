@@ -17,7 +17,7 @@ def analytics_tab(df):
 
     st.header("🎬 Analytics Dashboard")
 
-    # Parse Genre and Cast columns
+    # Parse list-like fields
     def parse_list_column(col):
         return col.apply(
             lambda x: [s.strip() for s in x.split(",")] if isinstance(x, str) and "," in x else
@@ -28,7 +28,7 @@ def analytics_tab(df):
     df["Genre"] = parse_list_column(df.get("Genre", pd.Series([])))
     df["Cast"] = parse_list_column(df.get("Cast", pd.Series([])))
 
-    # Normalize columns
+    # Normalize numeric columns
     for col in ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"]:
         df[col] = pd.to_numeric(df[col].astype(str).str.replace("%", "").str.strip(), errors="coerce")
 
@@ -44,15 +44,18 @@ def analytics_tab(df):
 
     # === Filters ===
     st.subheader("🔍 Filters")
+
     col1, col2, col3 = st.columns(3)
     with col1:
         year_range = st.slider("Year", int(df["Year"].min()), int(df["Year"].max()),
                                (int(df["Year"].min()), int(df["Year"].max())))
         genre_filter = st.multiselect("Genres", all_genres)
+
     with col2:
         budget_range = st.slider("Budget ($)", int(df["Budget"].min()), int(df["Budget"].max()),
                                  (int(df["Budget"].min()), int(df["Budget"].max())))
         director_filter = st.multiselect("Directors", all_directors)
+
     with col3:
         box_office_range = st.slider("Box Office ($)", int(df["Box Office"].min()), int(df["Box Office"].max()),
                                      (int(df["Box Office"].min()), int(df["Box Office"].max())))
@@ -62,7 +65,7 @@ def analytics_tab(df):
 
     # Apply filtering logic
     filtered_df = df.copy()
-    if top_100_only and "Rank" in filtered_df.columns:
+    if top_100_only and "Rank" in df.columns:
         filtered_df = filtered_df[filtered_df["Rank"].notna()]
 
     def matches(row):
@@ -127,7 +130,7 @@ def analytics_tab(df):
 
     # === Ratings by Category Bubble Chart ===
     st.subheader("📈 Ratings by Category")
-    bubble_cat = st.selectbox("Bubble Category", ["Genre", "Year", "Director", "Cast"], index=2)
+    bubble_cat = st.selectbox("Bubble Category", ["Director", "Genre", "Year", "Cast"], index=0)
     exploded_cat = filtered_df.explode(bubble_cat) if bubble_cat in ["Genre", "Cast"] else filtered_df
 
     bubble_df = (
@@ -162,4 +165,23 @@ def analytics_tab(df):
             x=alt.X("Budget", scale=alt.Scale(zero=False)),
             y=alt.Y("Box Office", scale=alt.Scale(zero=False)),
             size="Rotten Tomatoes",
-            color=alt.Color("IMDB Rating", scale=alt.Scale(range=["#f
+            color=alt.Color("IMDB Rating", scale=alt.Scale(range=["#f27802", "#2e0854", "#7786c8", "#708090", "#b02711"])),
+            tooltip=["Title", "Year", "Budget", "Box Office"]
+        ).properties(height=400),
+        use_container_width=True
+    )
+
+    # === Dual Axis Chart: Movies per Year vs Rating ===
+    st.subheader("📊 Movies Per Year vs Avg Rating")
+    rating_axis = st.selectbox("Rating Axis", ["IMDB Rating", "Rotten Tomatoes", "Metacritic Score"])
+    yearly = (
+        filtered_df.groupby("Year")
+        .agg(count=("Title", "count"), avg_rating=(rating_axis, "mean"))
+        .dropna()
+        .reset_index()
+    )
+
+    base = alt.Chart(yearly).encode(x="Year:O")
+    bar = base.mark_bar().encode(y="count")
+    line = base.mark_line(color="#b02711").encode(y=alt.Y("avg_rating", axis=alt.Axis(title="Avg Rating")))
+    st.altair_chart((bar + line).resolve_scale(y="independent").properties(height=400), use_container_width=True)
